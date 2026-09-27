@@ -193,8 +193,9 @@ body.live{padding-top:0;padding-bottom:40px}
 .list{display:flex;flex-direction:column;border:1px solid var(--line);background:var(--surface)}
 .ex{border-top:1px solid var(--hair)}
 .ex:first-child{border-top:0}
-.ex.done{background:var(--cafe-soft)}
-.ex.active{background:var(--sage-soft);box-shadow:inset 3px 0 0 var(--sage)}
+.ex.done{background:var(--surface)}
+.ex.done .ex-name,.ex.done .ex-w{opacity:.55}
+.ex.active{background:color-mix(in srgb, var(--apricot) 24%, var(--surface));box-shadow:inset 3px 0 0 var(--apricot)}
 .ex.active .stepper,.ex.active .logbtns button:not([aria-pressed="true"]){background:var(--surface)}
 .ex-main{display:grid;grid-template-columns:1fr auto;gap:3px 14px;padding:14px 16px;align-items:center;width:100%;text-align:left;border:0;background:transparent}
 .ex-name{font-weight:600;font-size:15.5px;display:flex;align-items:center;gap:9px}
@@ -235,7 +236,8 @@ body.live{padding-top:0;padding-bottom:40px}
 .logbtns button{border:0;border-left:1px solid var(--line);background:var(--surface);padding:14px 4px;font-weight:600;font-size:14.5px}
 .logbtns button:first-child{border-left:0}
 .logbtns button[aria-pressed="true"]{background:var(--ink);color:var(--on-ink)}
-.btn.logset{padding:14px 18px;font-size:15.5px}
+.btn.logset{padding:14px 18px;font-size:15.5px;background:var(--surface);color:var(--ink);border-color:var(--ink)}
+.btn.logset:hover,.btn.logset:active{background:var(--ink);color:var(--on-ink);border-color:var(--ink)}
 .logbtns button:active{background:var(--cafe-soft);color:var(--ink)}
 .hint{font-size:12.5px;color:var(--muted)}
 .logged{display:flex;flex-direction:column;border-top:1px solid var(--hair)}
