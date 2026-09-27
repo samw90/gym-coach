@@ -378,6 +378,9 @@ td.r,th.r{text-align:right}
 .gallery{display:flex;gap:0;overflow-x:auto;border:1px solid var(--line);background:var(--surface);scroll-snap-type:x mandatory}
 .gcell{flex:0 0 150px;margin:0;padding:18px 10px 14px;display:flex;flex-direction:column;align-items:center;gap:8px;border-right:1px solid var(--hair);scroll-snap-align:start;text-align:center}
 .gcell:last-child{border-right:0}
+.monthcard{margin:0;border:1px solid var(--line);background:var(--surface);padding:18px 16px 16px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.monthcard svg{width:100%;max-width:320px;height:auto}
+.monthcard figcaption{font-size:13px;color:var(--muted);text-align:center}
 .gcell.now{flex-basis:190px;background:var(--cafe-soft)}
 .gcell svg{width:110px;height:auto}
 .gcell.now svg{width:150px}
@@ -773,15 +776,35 @@ function arrangementSVG(moodIdx, n, {gold=false, charm=false, reveal=-1}={}){
   const ch = charm ? `<path d="M117 162 Q 128 172 126 184" fill="none" stroke="var(--gold)" stroke-width="1"/><path d="M126 184 l5 7 l-5 7 l-5 -7 Z" fill="var(--gold)"/>` : "";
   return back + VASE + base + parts[2] + parts[1] + parts[0] + hint + ch;
 }
-/* a month: every stem from four complete weeks in one large arrangement */
-function monthSVG(stems, greens){
-  const order = [0,4,8,1,5,9,2,6,10,3,7,11].map(i=>stems[i]).filter(Boolean);
-  const P = [[210,92,36],[156,112,30],[266,108,30],[112,150,26],[308,146,26],[184,158,28],[240,154,27],[80,196,21],[340,192,21],[140,204,22],[282,204,22],[212,206,24]];
-  const nx=210, ny=250; let back="", st="", fr="";
-  greens.slice(0,6).forEach((k,i)=>{ const side = i%2?1:-1; back += fgreen(k, nx+side*6, ny, nx+side*(40+i*10), ny-90, nx+side*(90+i*18), 70+i*22, 7, 1.35); });
-  order.forEach((f,i)=>{ const [x,y,r]=P[i]; st += fstem(nx+(x-nx)*.08, ny, nx+(x-nx)*.4, (y+ny)/2+30, x, y+r*.6); fr += fhead(f[0], f[1], x, y, r); });
+/* a month: every stem earned this month in one large vase; the ones still to come are outlined */
+const MONTH_POS = [[210,92,36],[156,112,30],[266,108,30],[112,150,26],[308,146,26],[184,158,28],[240,154,27],[80,196,21],[340,192,21],[140,204,22],[282,204,22],[212,206,24],[160,60,21],[262,58,21],[364,144,19]];
+function monthSVG(stems, greens, total, complete){
+  const nx=210, ny=250; let back="", st="", fr="", hint="";
+  greens.slice(0,8).forEach((k,i)=>{ const side = i%2?1:-1; back += fgreen(k, nx+side*6, ny, nx+side*(40+i*10), ny-90, nx+side*(90+i*16), 70+i*20, 7, 1.35); });
+  stems.forEach((f,i)=>{ const [x,y,r]=MONTH_POS[i]; st += fstem(nx+(x-nx)*.08, ny, nx+(x-nx)*.4, (y+ny)/2+30, x, y+r*.6); fr += fhead(f[0], f[1], x, y, r); });
+  for(let i=stems.length;i<total;i++){ const [x,y,r]=MONTH_POS[i]; hint += `<circle class="hintc" cx="${x}" cy="${y}" r="${r*.8}"/>`; }
   const v = `<g transform="translate(${nx-175} ${ny-262.5}) scale(1.75)">${VASE}</g>`;
-  return back + v + st + fr + `<line x1="120" y1="388" x2="300" y2="388" stroke="#B8975A" stroke-width="1.2"/>`;
+  const base = complete ? `<line x1="120" y1="388" x2="300" y2="388" stroke="var(--gold)" stroke-width="1.2"/>` : `<line x1="140" y1="388" x2="280" y2="388" stroke="var(--ink)" stroke-opacity=".2"/>`;
+  return back + v + st + fr + hint + base;
+}
+/* This month's weeks are the ones whose Monday falls in the month: 4 or 5 weeks, 3 stems each */
+function monthCard(){
+  const y = today.getFullYear(), m = today.getMonth();
+  const weeks = [];
+  // weeks before your first workout don't count against you
+  const firstWeek = sessions.length ? weekKeyOf(sessions[sessions.length-1].date) : DX.wk.curKey;
+  for(let d = new Date(y, m, 1); d.getMonth()===m; d.setDate(d.getDate()+1)) if(d.getDay()===1){ const k = dkey(d); if(k>=firstWeek) weeks.push(DX.wk.map[k] || {key:k, n:0, stems:[], mood:moodFor(k)}); }
+  if(!weeks.length) weeks.push(DX.wk.map[DX.wk.curKey]);
+  const total = weeks.length*3;
+  const stems = weeks.flatMap(w=>w.stems||[]);
+  const greens = weeks.filter(w=>w.complete).flatMap(w=>MOODS[w.mood][2]);
+  const n = stems.length, name = today.toLocaleDateString(undefined,{month:"long"});
+  const left = weeks.filter(w=>w.key>=DX.wk.curKey).length;
+  return `<div class="sectionhead"><p class="eyebrow">This month</p><h2>${esc(name)}<span class="muted" style="font-size:15px;font-family:var(--body)"> · ${n} of ${total} stems</span></h2></div>
+  <figure class="monthcard">
+    <svg viewBox="30 20 360 380" role="img" aria-label="${esc(name)} arrangement, ${n} of ${total} stems">${monthSVG(stems, greens, total, n>=total)}</svg>
+    <figcaption>${n>=total ? "The full arrangement. Every visit this month." : `Each visit adds a stem. ${total-n} to go${left>0?`, ${left} week${left>1?"s":""} left this month`:""}.`}</figcaption>
+  </figure>`;
 }
 
 /* ======================================================================
@@ -1569,6 +1592,7 @@ function renderProgress(){
   let out = `<div class="wrap" style="padding:0">
   <div class="sectionhead"><p class="eyebrow">Your arrangements</p><h2>${esc(MOODS[DX.wk.map[DX.wk.curKey].mood][0])}<span class="muted" style="font-size:15px;font-family:var(--body)"> · this week</span></h2></div>
   <div class="gallery">${shown.map(w=>`<figure class="gcell${w.key===DX.wk.curKey?" now":""}"><svg viewBox="0 0 200 250" role="img" aria-label="${esc(MOODS[w.mood][0])}, ${w.n} of 3 stems">${arrangementSVG(w.mood, w.n, {gold:w.complete, charm:DX.events.some(e=>e.week===w.key)})}</svg><figcaption><i>${w.complete||w.key===DX.wk.curKey?esc(MOODS[w.mood][0]):"Week of"}</i><span>${w.key===DX.wk.curKey?`${w.n} of 3 stems`:fmtShort(w.key)+(w.complete?" · complete":` · ${w.n} of 3`)}</span></figcaption></figure>`).join("")}</div>
+  ${monthCard()}
   <div class="sectionhead"><p class="eyebrow">This week</p><h2>${Math.min(3,slots.filter(x=>x.s).length)} of 3 visits</h2></div>
   <div class="weekvis">
     <div class="rings">${slots.map(ring).join("")}</div>
