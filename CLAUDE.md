@@ -4,7 +4,7 @@ A personal, phone-first workout coach for machine training at Lifetime (Plymouth
 
 ## Who it's for and how it's used
 - Cassie: goals are strength, health and longevity. No injuries. She uses machines only, plus core work on the mat with dumbbells. She dislikes calf machines and ab machines. There's no hip thrust machine at her gym, so the glute kickback machine is used instead.
-- Three gym visits a week: legs & glutes, chest/back/arms, then recovery (or an optional light full-body day).
+- Three gym visits a week, run as a 6-week program (see The program). She opens the app and it tells her today's focus; she can override it.
 - She checks in with energy (1–5) and time (10/20/30/40 min, and the treadmill walk counts toward that time), then works through the plan set by set on her phone.
 
 ## Design
@@ -15,8 +15,12 @@ A personal, phone-first workout coach for machine training at Lifetime (Plymouth
 
 ## Architecture (all inside the one `<script>`)
 - `LIB`: exercise library (machines, dumbbell core, bodyweight core). `ORDER`: rotation per day type (`lower`, `upper`, `light`, `core`). `ENERGY`: how energy changes weight, sets and rest.
-- `recommend()` suggests today's focus with a one-line reason, from energy, minutes and what this week already holds: drained → recovery; both lifts done → light (energy 4+, 20+ min) or recovery; tired with 10 min → recovery; otherwise the lift still missing this week. A workout already logged or started today wins. Tapping another chip overrides it; tapping the suggested chip or "Use suggestion" returns to `auto`.
-- `buildPlan()` sizes the workout to the time budget. `ui.focus`: `auto` (follows `recommend()`), `lower`, `upper`, `recovery`, `light`, or `mix` (Surprise me, a seeded random shuffle stored in `localStorage` under `coach.mix`).
+- **The program** (`BLOCK`, `WEEK_DAYS`, `slotInfo`): 6-week blocks of Foundation (10–12) ×2, Build (8–10) ×2 (week 4 adds a 4th set on main lifts), Strength (6–8 main, 8–10 others), Deload (2 sets at ~80%). Three sessions per training week: lower, upper, recovery. Main lifts are `ORDER[type].fixed`.
+- It's a sequence, not a calendar. Programmed sessions store `s.slot`; `programState()` finds the first open slot in the current training week, so a missed day just waits.
+- `coachToday()` decides today: the next slot, or, if she picks another focus, a **swap** (another open slot this week; light counts as the recovery slot when that's next) or a **bonus** day (`s.bonus`, no slot; the program stays put). It also eases 10% after a 10+ day gap and 5% when the same muscles were trained yesterday.
+- `repRange()` gives each exercise its phase range; `prescribe()` converts working weight through Epley e1RM when the range changes. Sessions store `ex.range` so `evaluate()` replays with the right range. Deload sessions (`s.deload`) don't move the numbers.
+- UI: `focusCard()` ("Your focus for today" / "Next up" / "Your pick today" + coach's adjustment) at the top of Today; `programView()` on My plan.
+- `buildPlan()` sizes the workout to the time budget. `ui.focus`: `auto` (follows the program), `lower`, `upper`, `recovery`, `light`, or `mix` (Surprise me, a seeded random shuffle stored in `localStorage` under `coach.mix`).
 - `draft`: the workout in progress, saved to `localStorage` (`coach.draft`) until the whole session is saved. The header dot turns red while logged sets are unsaved.
 - Guided set flow: stepper inputs, then log the set as Easy / Just right / Hard, then a rest timer. There's also a treadmill timer. Sets can be edited or deleted.
 - **Progression is derived, never stored.** `computeAll()` replays every session (plus manual overrides in `state.manual`, keyed by timestamp) through `evaluate()`:
@@ -33,7 +37,7 @@ A personal, phone-first workout coach for machine training at Lifetime (Plymouth
   - `arrangementSVG()` draws it from hand-built SVG flowers in `FDRAW`.
 
 ## Data
-- Model: `state` `{manual:{[exerciseId]:{w,reps,at}}}` and `sessions` `[{id, v:3, date, type, minutes, energy, walk, note, createdAt, exercises:[{id, target:{w,reps}, planned, sets:[{w,reps,grade}], note}]}]`.
+- Model: `state` `{manual:{[exerciseId]:{w,reps,at}}}` and `sessions` `[{id, v:3, date, type, minutes, energy, walk, note, createdAt, slot?, bonus?, deload?, block, week, phase, exercises:[{id, target:{w,reps}, planned, range:{lo,hi}, sets:[{w,reps,grade}], note}]}]`.
 - **Local storage only, by design.** `store` reads and writes `localStorage` (`coach.state`, `coach.sessions`) and asks for persistent storage. There is no backend and no sync. On iPhone the home-screen app has its own storage, separate from Safari, so data moves in and out only through **My plan → Export / Import backup**.
 - Export format: `{app:"cassie-gym-coach", version:3, exportedAt, manual, sessions}`. On iPhone, export opens the share sheet (`navigator.share` with a File, so she can pick "Save to Files"). Elsewhere it's a Blob download, and it falls back to text to copy.
 - `coach.lastBackup` records the last export or import. The header nudges "time for a backup" after 14 days.

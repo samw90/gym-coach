@@ -121,8 +121,30 @@ header.top{display:flex;flex-direction:column;gap:6px;padding-bottom:16px;border
 .q-label{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-weight:600}
 .q-label .muted{font-weight:400}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
-.focus-why{margin:0;line-height:1.45}
-.focus-why .linkbtn{font-size:inherit;padding:0 0 0 2px}
+.focus-card{background:var(--surface);border:1px solid var(--line);border-top:4px solid var(--merlot);padding:18px 20px 20px;display:flex;flex-direction:column;gap:8px}
+.focus-card.upper{border-top-color:var(--plum)}
+.focus-card.recovery{border-top-color:var(--sage)}
+.focus-card.light{border-top-color:var(--apricot)}
+.focus-card.mix{border-top-color:var(--gold)}
+.focus-card p{margin:0}
+.focus-title{font-size:32px;line-height:1.05}
+.focus-where{font-size:12.5px;font-weight:600;color:var(--muted)}
+.focus-goal .eyebrow{margin-right:6px;font-size:10px}
+.focus-alt{display:flex;flex-direction:column;gap:9px;margin-top:8px;padding-top:14px;border-top:1px solid var(--hair)}
+.focus-alt .linkbtn{align-self:flex-start;padding:0}
+.prog{border:1px solid var(--line);background:var(--surface)}
+.pw{display:grid;grid-template-columns:62px 1fr auto;align-items:center;gap:10px;padding:10px 14px;border-top:1px solid var(--hair)}
+.pw:first-child{border-top:0}
+.pw.cur{background:var(--cafe-soft)}
+.pw-n{font-size:12px;font-weight:600;color:var(--muted)}
+.pw-ph{display:flex;flex-direction:column;line-height:1.3}
+.pw-ph b{font-family:var(--display);font-weight:400;font-size:16px}
+.pw-m{display:flex;gap:5px}
+.pm{width:12px;height:12px;border:1px solid var(--line);border-radius:50%}
+.pm.on.lower{background:var(--merlot)}.pm.on.upper{background:var(--plum)}.pm.on.recovery{background:var(--sage)}
+.pm.now{box-shadow:0 0 0 2px var(--surface),0 0 0 3px var(--gold)}
+.upnext{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.sugg-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--gold);margin-right:6px;vertical-align:1px}
 .chip{border:1px solid var(--line);background:transparent;border-radius:2px;padding:7px 12px;font-size:14px;font-weight:500;transition:background .15s,color .15s}
 .chip:hover{background:var(--cream-2)}
 .chip[aria-pressed="true"]{background:var(--ink);color:var(--on-ink)}
@@ -426,6 +448,25 @@ const ENERGY = [
   {v:5,label:"Energized",mult:1.05,rest:90,effort:"8–9/10",sets:3,note:"Great day to push. Weights nudged up about 5% and an extra set on your first machine."}
 ];
 const LIGHT = {mult:.8,rest:60,effort:"6/10",sets:2};
+
+/* ---------- the program: 6-week blocks, three sessions per training week ----------
+   A sequence, not a calendar. A missed day waits for you. Main lifts are ORDER[type].fixed. */
+const WEEK_DAYS = ["lower","upper","recovery"];
+const BLOCK = [
+  {phase:"Foundation", main:{lo:10,hi:12}, acc:{lo:10,hi:12}, sets:3, mainSets:3, rest:75, effort:"7/10",
+   cue:"Smooth, controlled reps with about 3 left in the tank. We're setting clean baselines."},
+  {phase:"Foundation", main:{lo:10,hi:12}, acc:{lo:10,hi:12}, sets:3, mainSets:3, rest:75, effort:"7/10",
+   cue:"Same rep range as last week. Beat last week by a rep or a little weight."},
+  {phase:"Build", main:{lo:8,hi:10}, acc:{lo:8,hi:10}, sets:3, mainSets:3, rest:90, effort:"8/10",
+   cue:"Heavier weights, fewer reps. The last two reps of each set should take real effort."},
+  {phase:"Build", main:{lo:8,hi:10}, acc:{lo:8,hi:10}, sets:3, mainSets:4, rest:90, effort:"8/10",
+   cue:"A fourth set on your two main lifts this week. More work at the same weights."},
+  {phase:"Strength", main:{lo:6,hi:8}, acc:{lo:8,hi:10}, sets:3, mainSets:4, rest:120, effort:"8–9/10",
+   cue:"The heaviest week of the block. Full two-minute rests, and perfect form on every rep."},
+  {phase:"Deload", main:{lo:10,hi:12}, acc:{lo:10,hi:12}, sets:2, mainSets:2, rest:60, effort:"6/10", deload:true,
+   cue:"An easy week at about 80%. Your body turns the last five weeks into strength now. Next week, a new block starts."}
+];
+const slotInfo = i=>{ const wk = Math.floor(i/3)%BLOCK.length; return {slot:i, block:Math.floor(i/(3*BLOCK.length))+1, week:wk+1, day:i%3, type:WEEK_DAYS[i%3], ph:BLOCK[wk]}; };
 const CORE_REST = 45;
 const DAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 const STRETCHES = [
@@ -539,7 +580,8 @@ const setsText = (id,sets)=>sets.map(s=>LIB[id].bw?`${s.reps}`:`${s.w}×${s.reps
    ====================================================================== */
 function evaluate(ex, cur, s){
   const id = ex.id, L = LIB[id]; if(!L) return cur;
-  const rg = range(id);
+  const rg = ex.range ? Object.assign({start:ex.range.lo, inc:2}, ex.range) : range(id);
+  const sameRange = !cur.rg || (cur.rg.lo===rg.lo && cur.rg.hi===rg.hi);
   const sets = (ex.sets||[]).map(x=>({w:Number(x.w)||0, reps:Number(x.reps)||0, grade:x.grade||"right"}));
   if(!sets.length) return cur;
   const T = (ex.target && ex.target.reps) || cur.reps || rg.start;
@@ -588,9 +630,9 @@ function evaluate(ex, cur, s){
       else { nextW = proven; nextR = Math.min(rg.hi, T+rg.inc); change="reps"; }
     } else { nextW = proven; nextR = T; change="hold"; }
   }
-  if(!full && curW && nextW<curW){ nextW = curW; nextR = curR; change="hold"; last.lightDay = true; }
+  if(!full && sameRange && curW && nextW<curW){ nextW = curW; nextR = curR; change="hold"; last.lightDay = true; }
   Object.assign(last,{change, w:Math.max(...weights), proven, reps:sets.map(x=>x.reps)});
-  return Object.assign({}, cur, {w:nextW, reps:nextR, last});
+  return Object.assign({}, cur, {w:nextW, reps:nextR, last, rg:{lo:rg.lo, hi:rg.hi}});
 }
 function computeAll(list){
   const W = {}, H = {};
@@ -600,6 +642,7 @@ function computeAll(list){
   ev.sort((a,b)=>String(a.t).localeCompare(String(b.t)));
   for(const e of ev){
     if(e.m){ const c = W[e.id]||{}; W[e.id] = Object.assign({}, c, e.m.w?{w:e.m.w}:{}, e.m.reps?{reps:e.m.reps}:{}); continue; }
+    if(e.s.deload) continue;
     for(const ex of (e.s.exercises||[])){
       if(!LIB[ex.id] || !(ex.sets||[]).length) continue;
       W[ex.id] = evaluate(ex, W[ex.id]||{}, e.s);
@@ -828,7 +871,7 @@ function computeDistinctions(list){
     const val = L.machine ? Math.max(provenBest[L.machine]||0, (DER.W[L.machine]&&DER.W[L.machine].w)||0) : L.id==="weeks" ? wk.run : L.id==="plank" ? st.plank : st[L.id];
     if(L.machine && !val) continue;
     const next = L.rungs.find(r=>!reached[L.id+":"+r] && val<r); if(!next) continue;
-    goals.push({name:L.name(next), cur:L.fmt(val), goal:L.goal?L.goal(next):next, unit:L.unit, pct:Math.min(1,val/next), id:L.id});
+    goals.push({name:L.name(next), cur:L.fmt(val), goal:L.goal?L.goal(next):next, unit:L.unit, pct:Math.min(1,val/next), id:L.id, machine:L.machine, val, next});
   }
   /* a balanced mix: consistency first, then your closest strength goals, then lifetime totals */
   const pick = id=>goals.find(g=>g.id===id);
@@ -883,51 +926,81 @@ function summarize(s){
 }
 
 
-/* The coach's suggested focus for today, from energy, time and what this week already holds.
-   Tapping another focus overrides it; tapping the suggested one goes back to following it. */
-function recommend(){
-  const done = sessions.find(s=>s.date===TODAY);
-  if(done) return {type:done.type, why:"Matches what you logged today."};
-  const started = draft && draft.key && draft.key.startsWith(TODAY+"|") && Object.values(draft.entries||{}).some(x=>x.sets.length);
-  if(started) return {type:draft.key.split("|")[1], why:"You've already started this one."};
-
-  const wk = thisWeek(), en = ui.energy, min = ui.minutes;
-  const hasL = wk.some(s=>s.type==="lower"), hasU = wk.some(s=>s.type==="upper");
-  const lifts = wk.filter(s=>["lower","upper","mix"].includes(s.type)).length;
-  const liftsDone = (hasL && hasU) || lifts>=2;
-  const visits = new Set(wk.map(s=>s.date)).size;
-  const nth = ["First","Second","Third"][visits] || "Another";
-
-  if(en===1) return {type:"recovery", why:"You're drained. A walk and a stretch still count as a visit."};
-  if(liftsDone){
-    if(en>=4 && min>=20) return {type:"light", why:"Both lifting days are done and you have energy to spare, so a light full-body day."};
-    return {type:"recovery", why:"Both lifting days are done. Recovery rounds out the week."};
-  }
-  if(en===2 && min<=10) return {type:"recovery", why:"Tired with only 10 minutes. A walk and a stretch is the right call."};
-
-  let type;
-  if(hasL) type = "upper";
-  else if(hasU) type = "lower";
-  else { const last = (sessions.find(s=>s.type==="lower"||s.type==="upper")||{}).type; type = last==="lower" ? "upper" : "lower"; }
-  const other = type==="lower" ? "upper" : "lower";
-  const left = !hasL && !hasU && lifts===0 ? ` ${TYPE_NAME[other]} next time.` : "";
-  if(en===2) return {type, why:`Tired, so the plan eases off: lighter weights and fewer sets.${left}`};
-  if(min<=10) return {type, why:`Only 10 minutes, so a short version with 2 sets each.${left}`};
-  if(left) return {type, why:`${nth} visit this week. ${TYPE_NAME[type]} today, ${TYPE_NAME[other].toLowerCase()} next time.`};
-  return {type, why:`${nth} visit this week, and ${TYPE_NAME[type].toLowerCase()} is still to do.`};
+/* ======================================================================
+   THE COACH — works out where you are in the program and what today is.
+   • Programmed sessions carry s.slot. The next session is the first open
+     slot in the current training week, so a missed day just waits.
+   • Picking a different focus: if it's another open session this week,
+     it's a swap (the skipped one moves to next visit). Otherwise it's a
+     bonus day: logged and counted, but the program stays where it was.
+   ====================================================================== */
+function programState(){
+  const done = new Set(sessions.filter(s=>Number.isInteger(s.slot)).map(s=>s.slot));
+  const max = done.size ? Math.max(...done) : -1;
+  let wk = max<0 ? 0 : Math.floor(max/3);
+  if([0,1,2].every(d=>done.has(wk*3+d))) wk++;
+  const open = [0,1,2].map(d=>wk*3+d).filter(i=>!done.has(i));
+  return {done, wk, open, next:slotInfo(open[0])};
 }
-function autoFocus(){ return recommend().type; }
+function coachToday(){
+  const P = programState(), next = P.next;
+  const trainedToday = sessions.some(s=>s.date===TODAY);
+  const pick = ui.focus==="auto" ? next.type : ui.focus;
+  let mode = "plan", info = next, adjust = "";
+  if(pick!==next.type){
+    const swapSlot = P.open.map(slotInfo).find(x=>x.type===pick || (pick==="light" && x.type==="recovery" && x.slot===P.open[0]));
+    if(swapSlot && pick!=="mix"){
+      mode = "swap"; info = Object.assign({}, swapSlot, {type:pick});
+      adjust = pick==="recovery" ? `Taking this week's recovery session now. ${TYPE_NAME[next.type]} is still next.`
+        : pick==="light" ? `A light full-body day as this week's third session. It keeps your numbers where they are.`
+        : `Swapped. This counts as this week's ${TYPE_NAME[pick].toLowerCase()} session, and ${TYPE_NAME[next.type].toLowerCase()} moves to your next visit.`;
+    } else {
+      mode = "bonus"; info = Object.assign({}, slotInfo(P.open[0]), {type:pick, slot:null});
+      adjust = pick==="mix" ? `A fun day, just for you. Your program picks up with ${TYPE_NAME[next.type].toLowerCase()} next time.`
+        : `A bonus day. It's logged and your weights still count, but your program picks up with ${TYPE_NAME[next.type].toLowerCase()} next time.`;
+    }
+  }
+  // a coach's adjustments
+  const notes = [];
+  let mult = 1;
+  const prev = sessions.find(s=>s.date<TODAY);
+  const gap = prev ? Math.round((parseKey(TODAY)-parseKey(prev.date))/864e5) : 0;
+  if(gap>=10 && info.type!=="recovery"){ mult *= .9; notes.push(`It's been ${gap} days, so we ease back in at about 90% today.`); }
+  const recent = sessions.find(s=>s.date<TODAY && (parseKey(TODAY)-parseKey(s.date))/864e5<=1 && (s.type===info.type || (["mix","light"].includes(s.type) && ["lower","upper"].includes(info.type))));
+  if(recent && ["lower","upper"].includes(info.type)){ mult *= .95; notes.push(`You trained ${TYPE_NAME[recent.type].toLowerCase()} yesterday, so today runs a touch lighter.`); }
+  return {P, next, info, mode, adjust, mult, notes, trainedToday};
+}
+function autoFocus(){ return programState().next.type; }
+function progFields(C){
+  const i = C.info, f = {block:i.block, week:i.week, phase:i.ph.phase};
+  if(C.mode==="bonus") f.bonus = true; else f.slot = i.slot;
+  if(i.ph.deload && C.mode!=="bonus") f.deload = true;
+  return f;
+}
 
+/* Rep range for an exercise today: the phase's main or accessory range; core keeps its own. */
+function repRange(id, e){
+  if(LIB[id].bw || LIB[id].db || !e || !e.ph) return range(id);
+  const r = (e.mainIds||[]).includes(id) ? e.ph.main : e.ph.acc;
+  return {lo:r.lo, hi:r.hi, inc:2, start:r.lo};
+}
 function prescribe(id, e){
-  const ex = LIB[id], rg = range(id), st = DER.W[id] || {};
-  const reps = st.reps || rg.start;
-  if(ex.bw) return {w:0, reps, bw:true, tag:"", msg:lastMsg(id, st)};
-  if(!st.w) return {w:roundFor(id, ex.start*Math.min(1,e.mult)), reps, tag:"First try", cls:"new", fresh:true, msg:null};
-  const w = roundFor(id, st.w*e.mult);
+  const ex = LIB[id], rg = repRange(id, e), st = DER.W[id] || {};
+  if(ex.bw) return {w:0, reps:st.reps || rg.start, bw:true, tag:"", msg:lastMsg(id, st)};
+  if(!st.w) return {w:roundFor(id, ex.start*Math.min(1,e.mult)), reps:rg.start, tag:"First try", cls:"new", fresh:true, msg:null};
+  // a new rep range converts your working weight through estimated strength (Epley)
+  let base = st.w, reps = st.reps || rg.start, converted = false;
+  const fits = reps>=rg.lo && reps<=rg.hi;
+  if(!fits || (st.rg && (st.rg.lo!==rg.lo || st.rg.hi!==rg.hi))){
+    const e1 = st.w*(1+(st.reps||10)/30);
+    base = roundFor(id, e1/(1+rg.lo/30)); reps = rg.lo; converted = base!==st.w || !fits;
+  }
+  const w = roundFor(id, base*e.mult);
   const ch = st.last && st.last.change;
-  const tag = w>st.w ? "+ energy" : w<st.w ? "eased" : ch==="weight"||ch==="between" ? "new weight" : ch==="reps" ? "more reps" : "";
-  const cls = w>st.w || ch==="weight"||ch==="between"||ch==="reps" ? "up" : w<st.w ? "down" : "";
-  return {w, reps, tag, cls, msg:lastMsg(id, st, w)};
+  const tag = converted ? (w>st.w ? "heavier phase" : "new phase") : w>base ? "+ energy" : w<base ? "eased" : ch==="weight"||ch==="between" ? "new weight" : ch==="reps" ? "more reps" : "";
+  const cls = converted || w>base || ch==="weight"||ch==="between"||ch==="reps" ? "up" : w<base ? "down" : "";
+  const msg = converted ? {read:null, plan:`New rep range this phase: ${w} ${unitOf(id)} × ${reps}, converted from your working weight of ${st.w} × ${st.reps||10}.`} : lastMsg(id, st, w);
+  return {w, reps, tag, cls, msg};
 }
 function lastMsg(id, st, todayW){
   const L = st.last, u = unitOf(id), rw = repWord(id);
@@ -960,15 +1033,20 @@ function walkFor(min, v){
 }
 function buildPlan(){
   const base = energyOf(ui.energy);
-  const type = ui.focus==="auto" ? autoFocus() : ui.focus;
+  const C = coachToday(), type = C.info.type, ph = C.info.ph;
   if(type==="recovery"){
     const n = Math.max(3, Math.min(STRETCHES.length, Math.round(ui.minutes/4)));
-    return {type,e:base,walk:{min:Math.max(5, ui.minutes - n*2),speed:"2.8–3.0 mph",incline:"0–3%"},stretches:STRETCHES.slice(0,n),items:[],abs:[],all:[],est:ui.minutes};
+    return {type,C,e:base,walk:{min:Math.max(5, ui.minutes - n*2),speed:"2.8–3.0 mph",incline:"0–3%"},stretches:STRETCHES.slice(0,n),items:[],abs:[],all:[],est:ui.minutes};
   }
-  const e = type==="light" ? Object.assign({}, base, LIGHT, {label:"Light day", v:base.v, note:"A bonus session at about 80% of your working weights, 2 easy sets each. It won't lower your numbers."}) : base;
+  const mainIds = (ORDER[type]||{}).fixed || [];
+  const e = type==="light" ? Object.assign({}, base, LIGHT, {label:"Light day", v:base.v, ph, mainIds, mainSets:2, mult:LIGHT.mult*C.mult, note:"About 80% of your working weights, 2 easy sets each. It won't lower your numbers."})
+    : Object.assign({}, base, {ph, mainIds, mult:base.mult*(ph.deload?.8:1)*C.mult,
+        sets: base.v===1 ? 2 : ph.sets, mainSets: base.v===1 ? 2 : ph.mainSets, rest: base.v<=2 ? Math.min(ph.rest, 90) : ph.rest,
+        effort: base.v<=2 || ph.deload ? (ph.deload ? ph.effort : base.effort) : ph.effort});
   const walk = ui.walk ? walkFor(ui.minutes, e.v) : null;
   const budget = ui.minutes - (walk?walk.min:0);
   const baseSets = ui.minutes===10 ? 2 : e.sets;
+  const mainSets = ui.minutes===10 ? 2 : (e.mainSets||e.sets);
   const cost = (sets,rest=e.rest)=>sets*0.5+(sets-1)*rest/60+0.75;
   let candidates, corePool = null;
   if(type==="mix"){
@@ -988,8 +1066,8 @@ function buildPlan(){
   const reserve = wantAbs ? absCost : 0;
   const items = []; let used = 0;
   for(const id of candidates){
-    let sets = baseSets;
-    if(type!=="light" && e.v===5 && items.length===0 && ui.minutes>=30) sets += 1;
+    let sets = mainIds.includes(id) ? mainSets : baseSets;
+    if(type!=="light" && e.v===5 && items.length===0 && ui.minutes>=30 && !ph.deload) sets += 1;
     const c = cost(sets);
     if(used + c + reserve > budget + 0.5 && items.length>0) break;
     items.push({id,sets,rest:e.rest}); used += c;
@@ -1000,7 +1078,7 @@ function buildPlan(){
     const nAbs = (budget-used) >= absCost*2 ? 2 : 1;
     for(let i=0;i<nAbs;i++){ abs.push({id:corePool?corePool[i]:ORDER.core[(nCore+i)%ORDER.core.length],sets:absSets,rest:CORE_REST}); used += absCost; }
   }
-  return {type,e,walk,items,abs,all:[...items,...abs],est:Math.round(used+(walk?walk.min:0))};
+  return {type,C,e,walk,items,abs,all:[...items,...abs],est:Math.round(used+(walk?walk.min:0))};
 }
 
 /* ---------- draft (the workout in progress) ---------- */
@@ -1156,12 +1234,7 @@ function renderToday(){
   const plan = buildPlan();
   const e = plan.e;
   if(plan.type!=="recovery") ensureDraft(plan);
-  const rec = recommend(), auto = rec.type;
-  const eff = ui.focus==="auto" ? auto : ui.focus;
-  const focusChips = [["lower",TYPE_NAME.lower],["upper",TYPE_NAME.upper],["recovery",TYPE_NAME.recovery],["light",TYPE_NAME.light],["mix","Surprise me"]]
-    .map(([v,l])=>`<button class="chip" data-act="focus" data-v="${v}" aria-pressed="${eff===v}"${v===auto?' title="Suggested for today"':""}>${l}${v===auto?'<i class="sugg" aria-label="suggested"></i>':""}</button>`).join("");
-
-  let out = `<div class="wrap" style="padding:0">${savedToast()}${weekCard()}
+  let out = `<div class="wrap" style="padding:0">${savedToast()}${focusCard(plan)}${weekCard()}
   <section class="panel" aria-label="Check in">
     <div class="q">
       <div class="q-label"><span>How much is left in the tank after work?</span></div>
@@ -1170,11 +1243,6 @@ function renderToday(){
     <div class="q">
       <div class="q-label"><span>Time at the gym</span><span class="muted small">minutes, walk included</span></div>
       <div class="seg">${[10,20,30,40].map(m=>`<button data-act="min" data-v="${m}" aria-pressed="${ui.minutes===m}">${m}</button>`).join("")}</div>
-    </div>
-    <div class="q">
-      <div class="q-label"><span>Focus</span><span class="muted small"><i class="sugg" style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--gold);margin-right:6px;vertical-align:1px"></i>suggested for today</span></div>
-      <div class="chips">${focusChips}</div>
-      <p class="small muted focus-why">${eff===auto ? esc(rec.why) : `Your pick. The coach suggests ${esc(TYPE_NAME[auto])}. <button class="linkbtn" data-act="focus" data-v="${auto}">Use suggestion</button>`}</p>
     </div>
     <div class="toggle">
       <div><div style="font-weight:600">Treadmill walk first</div><div class="muted small">Warm-up that comes out of your total time</div></div>
@@ -1190,13 +1258,13 @@ function renderToday(){
     </div>`;
 
   if(plan.type==="recovery"){
-    out += `<div class="coachnote"><b>Your third visit is for recovery.</b> Rest is where the strength from this week actually gets built.</div>`;
-    if(ui.energy>=3) out += `<div class="offer"><span class="small"><b>Feeling good today?</b> Swap in a light full-body workout instead.</span><button class="btn ghost sm" data-act="focus" data-v="light">Make it a light day</button></div>`;
+    out += `<div class="coachnote"><b>Recovery is part of the program.</b> A walk and some mobility today help you get more out of the next lift.</div>`;
+    if(ui.energy>=4 && plan.C.mode==="plan" && plan.C.next.type==="recovery") out += `<div class="offer"><span class="small"><b>Feeling good today?</b> A light full-body day can count as this week's third session.</span><button class="btn ghost sm" data-act="focus" data-v="light">Make it a light day</button></div>`;
     out += walkCard(plan) + `<p class="eyebrow">Stretch & mobility</p>
     <div class="list">${plan.stretches.map(([n,d])=>`<div class="ex"><div class="ex-main"><div class="ex-name">${esc(n)}</div><div class="ex-rx" style="padding-left:0">${esc(d)}</div></div></div>`).join("")}</div>
     <div class="finish"><label for="rec-note" class="eyebrow">How does your body feel today?</label><textarea id="rec-note" placeholder="Sore spots, sleep, stress…"></textarea><button class="btn full" data-act="save-recovery">Log recovery day</button></div>`;
   } else {
-    out += `<div class="coachnote"><b>${esc(e.label)}:</b> ${esc(e.note)} Rest ${e.rest} sec between sets. Aim for ${e.effort} effort.</div>`;
+    out += `<div class="coachnote"><b>${esc(e.label)} energy:</b> ${esc(e.note)} Rest ${e.rest>=120?"2 min":e.rest+" sec"} between sets. Aim for ${e.effort} effort.</div>`;
     out += walkCard(plan);
     out += `<p class="eyebrow">Machines</p><div class="list">${plan.items.map(it=>exCard(it,plan)).join("")}</div>`;
     if(plan.abs.length) out += `<p class="eyebrow">Core on the mat</p><div class="list">${plan.abs.map(it=>exCard(it,plan)).join("")}</div>`;
@@ -1210,6 +1278,38 @@ function renderToday(){
   }
   out += `</section></div>`;
   return out;
+}
+
+function focusCard(plan){
+  const C = plan.C, i = C.info, planned = C.next, off = C.mode!=="plan";
+  const head = C.trainedToday && !off ? "Next up" : off ? "Your pick today" : "Your focus for today";
+  const where = i.type==="mix" ? "Just for fun" : `Block ${i.block} · Week ${i.week} of ${BLOCK.length} · ${i.ph.phase}`;
+  const lifts = ["lower","upper","light"].includes(i.type);
+  const rx = !lifts ? "Walk, stretch and mobility. Rest is where this week's strength gets built."
+    : i.ph.deload ? i.ph.cue
+    : i.type==="light" ? "Two easy sets on each machine at about 80%. It won't lower your numbers."
+    : i.ph.mainSets===i.ph.sets && i.ph.main.lo===i.ph.acc.lo ? `${i.ph.sets} × ${i.ph.main.lo}–${i.ph.main.hi} reps on every machine. ${i.ph.cue}`
+    : `${i.ph.mainSets} × ${i.ph.main.lo}–${i.ph.main.hi} on the main lifts, ${i.ph.sets} × ${i.ph.acc.lo}–${i.ph.acc.hi} on the rest. ${i.ph.cue}`;
+  const ids = plan.all.map(x=>x.id);
+  const goal = lifts ? DX.goals.find(g=>g.machine && ids.includes(g.machine)) : null;
+  const goalLine = goal ? `<p class="small focus-goal"><span class="eyebrow">Working toward</span> ${esc(goal.name)} lb · ${goal.next-goal.val} lb to go</p>` : "";
+  const opts = [["lower",TYPE_NAME.lower],["upper",TYPE_NAME.upper],["recovery",TYPE_NAME.recovery],["light",TYPE_NAME.light],["mix","Surprise me"]];
+  const chips = opts.map(([v,l])=>`<button class="chip" data-act="focus" data-v="${v}" aria-pressed="${i.type===v}">${l}${v===planned.type?'<i class="sugg" aria-label="in your program"></i>':""}</button>`).join("");
+  return `<section class="focus-card ${i.type}" aria-label="${esc(head)}">
+    <p class="eyebrow">${esc(head)}</p>
+    <h2 class="focus-title">${esc(TYPE_NAME[i.type])}</h2>
+    <p class="focus-where">${esc(where)}</p>
+    ${C.trainedToday && !off ? `<p class="small muted">Today's session is saved. This is what's waiting for your next visit.</p>` : ""}
+    <p class="small">${esc(rx)}</p>
+    ${off ? `<div class="coachnote"><b>Coach's adjustment:</b> ${esc(C.adjust)}</div>` : ""}
+    ${C.notes.length ? `<p class="small muted">${esc(C.notes.join(" "))}</p>` : ""}
+    ${goalLine}
+    <div class="focus-alt">
+      <div class="q-label"><span>Feeling something different?</span><span class="muted small"><i class="sugg-dot"></i>in your program</span></div>
+      <div class="chips">${chips}</div>
+      ${off ? `<button class="linkbtn" data-act="focus" data-v="${planned.type}">Back to the plan: ${esc(TYPE_NAME[planned.type])}</button>` : ""}
+    </div>
+  </section>`;
 }
 
 function exCard(it, plan){
@@ -1402,7 +1502,7 @@ function renderHistory(){
       <button class="hist-head" data-act="hist" data-id="${esc(s.id)}" aria-expanded="${open}">
         <span><b>${DAYS[parseKey(s.date).getDay()]}, ${fmtFull(s.date)}</b> <span class="pill ${s.type}" style="margin-left:6px">${TYPE_NAME[s.type]||esc(s.type)}</span></span>
         <span class="small muted num">${s.minutes||0} min</span>
-        <span class="small muted" style="grid-column:1/-1">${energyOf(s.energy).label} energy${exs.length?` · ${exs.length} exercises`:""}${s.note?` · “${esc(s.note)}”`:""}</span>
+        <span class="small muted" style="grid-column:1/-1">${s.bonus?"Bonus day · ":s.week?`Week ${s.week} · ${esc(s.phase||"")} · `:""}${energyOf(s.energy).label} energy${exs.length?` · ${exs.length} exercises`:""}${s.note?` · “${esc(s.note)}”`:""}</span>
       </button>
       ${open?`<div class="hist-body">
         ${exs.length?exs.map(x=>`<div class="hist-ex"><b>${esc(LIB[x.id]?.name||x.id)}</b><br><span class="num">${(x.sets||[]).map(y=>`${LIB[x.id]?.bw?"":y.w+"×"}${y.reps}${y.grade&&y.grade!=="right"?` (${GRADE[y.grade].toLowerCase()})`:""}`).join(" · ")}</span>${x.note?`<br><span class="small muted">“${esc(x.note)}”</span>`:""}</div>`).join(""):`<p class="small muted">${s.type==="recovery"?"Recovery walk and stretching.":"No sets logged."}</p>`}
@@ -1415,17 +1515,31 @@ function renderHistory(){
   return out+"</div>";
 }
 
+function programView(){
+  const P = programState(), cur = P.next, blockStart = (cur.block-1)*3*BLOCK.length;
+  const rows = BLOCK.map((w,k)=>{
+    const marks = [0,1,2].map(d=>{ const i = blockStart+k*3+d; return `<span class="pm ${WEEK_DAYS[d]}${P.done.has(i)?" on":""}${i===cur.slot?" now":""}" title="${esc(TYPE_NAME[WEEK_DAYS[d]])}"></span>`; }).join("");
+    const reps = w.deload ? "2 easy sets · ~80%" : w.main.lo===w.acc.lo && w.mainSets===w.sets ? `${w.sets} × ${w.main.lo}–${w.main.hi}` : `${w.mainSets} × ${w.main.lo}–${w.main.hi} main · ${w.sets} × ${w.acc.lo}–${w.acc.hi} others`;
+    return `<div class="pw${k+1===cur.week?" cur":""}"><span class="pw-n">Week ${k+1}</span><span class="pw-ph"><b>${w.phase}</b><span class="muted small">${reps}</span></span><span class="pw-m">${marks}</span></div>`;
+  }).join("");
+  const upcoming = P.open.map(slotInfo);
+  for(let i=Math.max(...P.open)+1; upcoming.length<6; i++) upcoming.push(slotInfo(i));
+  return `<div class="sectionhead"><p class="eyebrow">Your program</p><h2>Block ${cur.block}: week ${cur.week} of ${BLOCK.length}</h2><p class="small muted">Goal: strength, health and longevity. Each block builds for five weeks, then eases off for one so the strength sticks.</p></div>
+  <div class="prog">${rows}</div>
+  <div class="panel" style="gap:10px"><p class="eyebrow">Coming up</p>
+    ${upcoming.map((u,n)=>`<div class="upnext"><span class="pill ${u.type}">${esc(TYPE_NAME[u.type])}</span><span class="small muted">${n===0?"Next visit · ":""}Week ${u.week} · ${u.ph.phase}${u.block!==cur.block?` · block ${u.block}`:""}</span></div>`).join("")}
+  </div>
+  <div class="panel">
+    <p><b>How the program works:</b> three sessions per training week: legs & glutes, then chest, back & arms, then recovery. It follows your visits, not the calendar. Miss a day and the same workout waits for you.</p>
+    <p><b>Changing today's focus:</b> pick another session from this week and it's a swap; the one you skipped moves to your next visit. Pick anything else and it's a bonus day. It's logged and your weights count, but the program stays put.</p>
+    <p><b>How you move up:</b> hit your goal reps on every set and you get +2 reps next time. At the top of the range, the weight goes up and the reps reset. When a new phase changes the rep range, your weights convert automatically.</p>
+    <p class="small muted" style="padding-top:14px;border-top:1px solid var(--hair)">Tired days, light days and deload weeks never lower your numbers.</p>
+  </div>`;
+}
 function renderPlanTab(){
   const ip = ui.importPreview;
   return `<div class="wrap" style="padding:0">
-  <div class="sectionhead"><p class="eyebrow">Your week</p><h2>Three visits: two lifting days and one recovery</h2></div>
-  <div class="panel">
-    <p><b>Goal:</b> strength, health and longevity. Moderate reps, steady progress, no grinding.</p>
-    <p>Each week you get <b>Legs & glutes</b> and <b>Chest, back & arms</b>, in whichever order fits. Once both are done, your third visit is <b>Recovery</b>. If your energy is good, you can switch it to a <b>Light full-body</b> day.</p>
-    <p><b>How the coach reads your sets:</b> you grade every set as Easy, Just right or Hard, and the coach looks at all of them together. Easy sets followed by a hard last set counts as just right. If you jump to a heavier weight and it's hard, next time you'll meet in the middle.</p>
-    <p><b>How you move up:</b> hit your goal reps on every set and you get +2 reps next time. At 12 reps, the weight goes up (5–10 lb on machines, one dumbbell size on the mat) and you go back to 8 reps. All sets easy? The weight goes up right away.</p>
-    <p class="small muted" style="padding-top:14px;border-top:1px solid var(--hair)">Tired days and light days never lower your numbers.</p>
-  </div>
+${programView()}
 
   <div class="sectionhead"><p class="eyebrow">Backup</p><h3>Export or import your data</h3><p class="small muted">Everything is saved on this phone only. Export saves every workout and weight to a file you can keep in Files or iCloud Drive. Import brings a file back, adding only workouts that aren't already here.</p></div>
   <div class="panel" style="gap:12px">
@@ -1556,9 +1670,10 @@ document.addEventListener("click", async ev=>{
   else if(a==="save"){
     const plan = buildPlan(); t.disabled=true;
     const exercises = plan.all.map(it=>{const d=draft.entries[it.id];
-      return {id:it.id, target:d.target, planned:it.sets, sets:d.sets.map(s=>({w:Number(s.w)||0,reps:Number(s.reps)||0,grade:s.grade||"right"})), note:d.note||""};}).filter(x=>x.sets.length);
+      const rg = repRange(it.id, plan.e);
+      return {id:it.id, target:d.target, planned:it.sets, range:{lo:rg.lo, hi:rg.hi}, sets:d.sets.map(s=>({w:Number(s.w)||0,reps:Number(s.reps)||0,grade:s.grade||"right"})), note:d.note||""};}).filter(x=>x.sets.length);
     const noteEl = $("#sess-note");
-    const s = {id:TODAY+"-"+plan.type+"-"+Date.now().toString(36), v:3, date:TODAY, type:plan.type, minutes:ui.minutes, energy:ui.energy, walk:plan.walk?plan.walk.min:0, exercises, note:noteEl?noteEl.value:"", createdAt:new Date().toISOString()};
+    const s = Object.assign({id:TODAY+"-"+plan.type+"-"+Date.now().toString(36), v:3, date:TODAY, type:plan.type, minutes:ui.minutes, energy:ui.energy, walk:plan.walk?plan.walk.min:0, exercises, note:noteEl?noteEl.value:"", createdAt:new Date().toISOString()}, progFields(plan.C));
     const after = computeAll([...sessions, s]).W;
     const changes = exercises.map(x=>{ const st=after[x.id]; return st&&st.last ? `${LIB[x.id].name}: ${nextLine(x.id, st)}` : null; }).filter(Boolean);
     const summ = summarize(s);
@@ -1571,7 +1686,7 @@ document.addEventListener("click", async ev=>{
   }
   else if(a==="save-recovery"){
     const note = ($("#rec-note")||{}).value||"";
-    const s = {id:TODAY+"-recovery-"+Date.now().toString(36), v:3, date:TODAY, type:"recovery", minutes:ui.minutes, energy:ui.energy, walk:ui.minutes, exercises:[], note, createdAt:new Date().toISOString()};
+    const s = Object.assign({id:TODAY+"-recovery-"+Date.now().toString(36), v:3, date:TODAY, type:"recovery", minutes:ui.minutes, energy:ui.energy, walk:ui.minutes, exercises:[], note, createdAt:new Date().toISOString()}, progFields(coachToday()));
     const summ = summarize(s);
     try{ await store.putSession(s); ui.saved=Object.assign(summ,{changes:[]}); ui.focus="auto"; try{localStorage.setItem("coach.mix",JSON.stringify({date:dkeyNow(),seed:ui.mixSeed,on:false}));}catch(e){} ui.walkT=null; render(); }catch(e){ t.textContent="Couldn't save. Tap to try again."; }
   }
