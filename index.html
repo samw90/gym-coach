@@ -141,7 +141,6 @@ header.top .affirm,header.top .meta{padding-right:54px}
 .pv > span:last-child{display:flex;align-items:center;gap:8px;white-space:nowrap}
 .pv-swap{border:1px solid var(--hair);background:var(--surface);color:var(--ink);border-radius:2px;font-size:13px;line-height:1;padding:5px 7px}
 .pv-swap:hover{background:var(--cream-2)}
-.swapline{align-self:flex-start;padding:0;font-size:13px}
 .stars{display:flex;gap:4px}
 .star{border:0;background:transparent;font-size:30px;line-height:1;padding:2px 3px;color:var(--hair);-webkit-text-stroke:1px var(--muted)}
 .star.on{color:var(--gold);-webkit-text-stroke:1px var(--gold)}
@@ -1614,8 +1613,7 @@ function flowView(it, plan, d){
       </div>${setList(id,d)}`;
   } else if(n<total){
     const prev = n>0 && prevSets && prevSets[n] ? `Last time set ${n+1}: ${ex.bw?"":prevSets[n].w+" "+u+" × "}${prevSets[n].reps}` : "";
-    const alt = n===0 && GROUP_OF[it.from||id] && GROUP_OF[it.from||id].length>1 ? swapTarget(it.from||id, plan) : null;
-    body = `${n===0?`<p class="cue">${esc(ex.cue)}</p>${alt && alt!==id ? `<button class="linkbtn swapline" data-act="swap" data-id="${id}">Can't do this one? Swap for ${esc(LIB[alt].name)}</button>` : ""}`:""}${cheer}
+    body = `${n===0?`<p class="cue">${esc(ex.cue)}</p>`:""}${cheer}
       <div class="sethead"><h3>Set ${n+1} <span class="muted" style="font-size:16px">of ${total}</span></h3>${ticks}</div>
       <p class="target">Goal: <b>${ex.bw?"":`${d.target.w} ${u} × `}${d.target.reps}</b> ${repWord(id)}${perSide(id)}${prev?` <span class="muted small">· ${esc(prev)}</span>`:""}</p>
       ${ex.timed?holdTimer(id, d):""}
@@ -1915,7 +1913,7 @@ document.addEventListener("click", async ev=>{
     else { d.inReps = Math.max(0,(Number(d.inReps)||0) + Number(t.dataset.d)*(LIB[id].timed?5:1)); const el=document.getElementById("in-r-"+id); if(el) el.value=d.inReps; }
     d.touched = true; persistDraft();
   }
-  else if(a==="swap"){ const plan = buildPlan(); const it = plan.all.find(x=>x.id===id); if(it){ await doSwap(it.from||id, plan); if(ui.open===id) ui.open = useFor(it.from||id); render(); } }
+  else if(a==="swap"){ const plan = buildPlan(); const it = plan.all.find(x=>x.id===id); if(it){ await doSwap(it.from||id, plan); render(); } }
   else if(a==="hold-start"){ unlockAudio(); keepAwake(); ui.rest=null; ui.hold={id, phase:"ready", t0:Date.now(), side:1}; if(!holdTick.t) holdTick.t=setInterval(holdTick, 200); render(); }
   else if(a==="hold-cancel"){ ui.hold=null; render(); }
   else if(a==="hold-stop"){
