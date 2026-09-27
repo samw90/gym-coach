@@ -14,7 +14,7 @@ A personal, phone-first workout coach for machine training at Lifetime (Plymouth
 - Tone of copy: short, warm, understated. No exclamation points, no confetti. Avoid anything that feels adolescent. She doesn't want points for doing the basics.
 
 ## Architecture (all inside the one `<script>`)
-- `LIB`: exercise library (machines, dumbbell core, bodyweight core). `ORDER`: rotation per day type (`lower`, `upper`, `light`, `core`). `ENERGY`: how energy changes weight, sets and rest.
+- `LIB`: exercise library (machines, dumbbell core, bodyweight core), plus alternatives added with `Object.assign(LIB, …)`. `SWAP_GROUPS` lists moves for the same muscles (first id is the program's); `useFor(id)` returns her chosen move from `state.swaps`. The ⇄ button on the overview list, or "Can't do this one? Swap for …" before the first set, cycles to the next move in the group that isn't already in today's plan (cycling back to the original clears the swap). Swaps persist and travel in backups (`swaps`). `ORDER`: rotation per day type (`lower`, `upper`, `light`, `core`). `ENERGY`: how energy changes weight, sets and rest.
 - **The program** (`BLOCK`, `WEEK_DAYS`, `slotInfo`): 6-week blocks of Foundation (10–12) ×2, Build (8–10) ×2 (week 4 adds a 4th set on main lifts), Strength (6–8 main, 8–10 others), Deload (2 sets at ~80%). Three sessions per training week: lower, upper, recovery. Main lifts are `ORDER[type].fixed`.
 - It's a sequence, not a calendar. Programmed sessions store `s.slot`; `programState()` finds the first open slot in the current training week, so a missed day just waits.
 - `coachToday()` decides today: the next slot, or, if she picks another focus, a **swap** (another open slot this week; light counts as the recovery slot when that's next) or a **bonus** day (`s.bonus`, no slot; the program stays put). It also eases 10% after a 10+ day gap and 5% when the same muscles were trained yesterday.
@@ -42,7 +42,7 @@ A personal, phone-first workout coach for machine training at Lifetime (Plymouth
 - The weekly arrangement:
   - `MOODS`: 12 curated sets of three fall flowers and colors. `moodFor(weekKey)` picks one by hash without repeating the previous week.
   - Each visit (a distinct date, weeks run Monday to Sunday) reveals one stem. The third visit completes the week.
-  - On Today, only the stems earned this week show, small and unlabeled, in the header beside the affirmation (`renderBouquet`, `#bouquet`). There's no week card on the overview.
+  - Only the stems earned this week show, small and unlabeled, in the header beside the affirmation on every tab (`renderBouquet`, `#bouquet`). There's no week card on the overview. On Progress, each visit's ring in This week shows that visit's flower head.
   - `arrangementSVG()` draws it from hand-built SVG flowers in `FDRAW`.
   - The monthly arrangement (`monthCard`/`monthSVG`, on Progress): every stem from the weeks whose Monday falls in this month (4–5 weeks, 3 stems each; weeks before her first workout don't count) in one large vase. Unearned stems are dashed outlines (`MONTH_POS` has 15 spots), completed weeks add their greens, and a full month gets a gold base.
 

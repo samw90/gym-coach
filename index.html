@@ -138,6 +138,10 @@ header.top .affirm,header.top .meta{padding-right:54px}
 .pv{display:flex;justify-content:space-between;gap:10px;padding:10px 14px;border-top:1px solid var(--hair);font-size:14px}
 .pv:first-child{border-top:0}
 .pv.done{color:var(--muted)}
+.pv > span:last-child{display:flex;align-items:center;gap:8px;white-space:nowrap}
+.pv-swap{border:1px solid var(--hair);background:var(--surface);color:var(--ink);border-radius:2px;font-size:13px;line-height:1;padding:5px 7px}
+.pv-swap:hover{background:var(--cream-2)}
+.swapline{align-self:flex-start;padding:0;font-size:13px}
 .stars{display:flex;gap:4px}
 .star{border:0;background:transparent;font-size:30px;line-height:1;padding:2px 3px;color:var(--hair);-webkit-text-stroke:1px var(--muted)}
 .star.on{color:var(--gold);-webkit-text-stroke:1px var(--gold)}
@@ -456,6 +460,43 @@ const LIB = {
   plank:{name:"Forearm Plank",bw:true,timed:true,cue:"Elbows under shoulders, squeeze glutes, breathe. Stop when your hips start to sag."},
   sideplank:{name:"Side Plank",bw:true,timed:true,perSide:true,cue:"Elbow under shoulder, hips stacked and lifted. Knees down for an easier version. Log seconds per side."}
 };
+/* Alternatives for swapping: same muscles, different equipment */
+Object.assign(LIB, {
+  hacksquat:{name:"Hack Squat Machine",step:10,start:40,cue:"Shoulders under the pads, feet mid-platform. Lower until thighs are about parallel, drive up through your heels."},
+  gobletsquat:{name:"Goblet Squat with Dumbbell",db:true,start:15,cue:"Hold one dumbbell at your chest, feet a little wider than hips. Sit down between your heels, chest tall, then stand."},
+  stepup:{name:"Dumbbell Step-Up",db:true,start:8,perSide:true,sideWord:" each leg",cue:"A dumbbell in each hand, one foot on a knee-high box. Press through that heel to stand tall, lower slowly. Log reps per leg."},
+  lyingcurl:{name:"Lying Leg Curl",step:5,start:30,cue:"Pad just above your heels, hips pressed down. Curl up, lower for 3 counts."},
+  dbrdl:{name:"Dumbbell Romanian Deadlift",db:true,start:15,cue:"A dumbbell in each hand, soft knees. Push your hips back and slide the weights down your thighs, then squeeze your glutes to stand."},
+  glutebridge:{name:"Dumbbell Glute Bridge",db:true,start:15,cue:"On your back on the mat, dumbbell across your hips. Drive through your heels, squeeze at the top, lower slowly."},
+  cablekick:{name:"Cable Glute Kickback",step:5,start:10,perSide:true,sideWord:" each leg",cue:"Ankle strap on, hands on the frame, hips square. Press the leg straight back and squeeze. Log reps per leg."},
+  sidelegraise:{name:"Side-Lying Leg Raise",bw:true,perSide:true,cue:"On your side on the mat, bottom knee bent. Lift the top leg slightly behind you, toes forward, lower slowly. Log reps per side."},
+  innerthigh:{name:"Side-Lying Inner Thigh Lift",bw:true,perSide:true,cue:"On your side, top foot planted in front of your bottom knee. Lift the bottom leg a few inches, pause, lower. Log reps per side."},
+  cablerow:{name:"Cable Row",step:5,start:40,cue:"Sit tall, slight bend in the knees. Pull the handle to your belly, squeeze your shoulder blades, return slowly."},
+  dbrow:{name:"Single-Arm Dumbbell Row",db:true,start:15,perSide:true,sideWord:" each arm",cue:"One hand and knee on a bench, back flat. Pull the dumbbell to your hip, lower slowly. Log reps per arm."},
+  pecfly:{name:"Pec Fly Machine",step:5,start:30,cue:"Handles at chest height, slight bend in the elbows. Bring your hands together, pause, open slowly."},
+  dbpress:{name:"Dumbbell Chest Press",db:true,start:12,cue:"On a bench, dumbbells over your chest. Lower to the sides of your chest, press back up without locking your elbows."},
+  armpulldown:{name:"Single-Arm Cable Pulldown",step:5,start:15,perSide:true,sideWord:" each arm",cue:"Kneel facing the cable, handle overhead. Pull your elbow down to your side, squeeze, return slowly. Log reps per arm."},
+  straightpull:{name:"Cable Straight-Arm Pulldown",step:5,start:20,cue:"Arms long, slight hinge at the hips. Sweep the bar down to your thighs, keeping arms straight, return slowly."},
+  dbshoulder:{name:"Seated Dumbbell Shoulder Press",db:true,start:10,cue:"Seated with back support, dumbbells at shoulder height. Press up without shrugging, lower with control."},
+  lateralraise:{name:"Dumbbell Lateral Raise",db:true,start:5,cue:"Slight bend in the elbows. Raise the dumbbells out to shoulder height, lower for 3 counts."},
+  facepull:{name:"Cable Face Pull",step:5,start:15,cue:"Rope at face height. Pull toward your eyes, elbows high, squeeze your upper back."},
+  dbcurl:{name:"Dumbbell Curl",db:true,start:10,cue:"Elbows by your sides. Curl up, lower for 3 counts."},
+  cablecurl:{name:"Cable Biceps Curl",step:5,start:15,cue:"Elbows pinned to your sides. Curl the bar up, lower slowly."},
+  pushdown:{name:"Cable Triceps Pushdown",step:5,start:20,cue:"Elbows tucked at your sides. Press down to straight, control the return."},
+  ohext:{name:"Overhead Dumbbell Triceps Extension",db:true,start:10,cue:"Seated, one dumbbell held overhead with both hands. Lower behind your head, press back up. Elbows point forward."},
+  sidebend:{name:"Dumbbell Side Bend",db:true,start:15,perSide:true,cue:"Standing tall, dumbbell in one hand. Bend sideways toward it, then use your obliques to come back up. Log reps per side."},
+  birddog:{name:"Bird Dog",bw:true,perSide:true,cue:"On hands and knees, back flat. Reach one arm and the opposite leg long, pause, return. Log reps per side."}
+});
+/* Each group rotates through moves for the same muscles. The first id is the one in the program. */
+const SWAP_GROUPS = [
+  ["legpress","hacksquat","gobletsquat"], ["legext","stepup"], ["legcurl","lyingcurl","dbrdl"],
+  ["kickback","glutebridge","cablekick"], ["abductor","sidelegraise"], ["adductor","innerthigh"],
+  ["row","cablerow","dbrow"], ["chestpress","pecfly","dbpress"], ["pulldown","straightpull","armpulldown"],
+  ["shoulder","dbshoulder","lateralraise"], ["revfly","facepull"], ["biceps","dbcurl","cablecurl"], ["triceps","pushdown","ohext"],
+  ["dbcrunch","revcrunch"], ["deadbug","plank","birddog"], ["twist","sidebend","sideplank"]
+];
+const GROUP_OF = {}; SWAP_GROUPS.forEach(g=>g.forEach(id=>GROUP_OF[id]=g));
+const useFor = id=>(state.swaps && state.swaps[id]) || id;   // the move you do in this exercise's place
 const ORDER = {
   lower:{fixed:["legpress","legcurl"],rotate:["kickback","legext","abductor","adductor"]},
   upper:{fixed:["row","chestpress"],rotate:["pulldown","shoulder","revfly","biceps","triceps"]},
@@ -595,7 +636,7 @@ const energyOf = v=>ENERGY.find(e=>e.v===v)||ENERGY[2];
 const thisWeek = ()=>{ const ws=weekStart(today); return sessions.filter(s=>parseKey(s.date)>=ws); };
 const unitOf = id=>LIB[id].timed?"sec":LIB[id].db?"lb DB":"lb";
 const repWord = id=>LIB[id].timed?"sec":"reps";
-const perSide = id=>LIB[id].perSide ? (id==="kickback"?" each leg":" each side") : "";
+const perSide = id=>LIB[id].perSide ? (LIB[id].sideWord || (id==="kickback"?" each leg":" each side")) : "";
 const setsText = (id,sets)=>sets.map(s=>LIB[id].bw?`${s.reps}`:`${s.w}×${s.reps}`).join(", ");
 
 /* ======================================================================
@@ -895,7 +936,7 @@ function computeDistinctions(list){
     st.volume += sessVol;
     if(sessVol>=2000) addOnce("ton","The Ton",d,`${Math.round(sessVol).toLocaleString()} lb lifted in one session`);
     if(sessVol>=5000) addOnce("heavy","Heavy Lifting",d,`${Math.round(sessVol).toLocaleString()} lb lifted in one session`);
-    if(tried.size>=Object.keys(LIB).filter(k=>!LIB[k].bw && !LIB[k].db).length) addOnce("rounded","Well Rounded",d,"You've used every machine in your plan");
+    if([...ORDER.lower.fixed,...ORDER.lower.rotate,...ORDER.upper.fixed,...ORDER.upper.rotate].every(k=>tried.has(k) || [...tried].some(t=>GROUP_OF[k] && GROUP_OF[k].includes(t)))) addOnce("rounded","Well Rounded",d,"You've used every machine in your plan");
     const days = first ? Math.round((parseKey(d)-parseKey(first))/864e5) : 0;
     if(days>=90) addOnce("q","Three Months In",d,"Still here, three months later");
     if(days>=365) addOnce("y","One Year Strong",d,"A full year of showing up");
@@ -1070,7 +1111,7 @@ function buildPlan(){
     const n = Math.max(3, Math.min(STRETCHES.length, Math.round(ui.minutes/4)));
     return {type,C,e:base,walk:{min:Math.max(5, ui.minutes - n*2),speed:"2.8–3.0 mph",incline:"0–3%"},stretches:STRETCHES.slice(0,n),items:[],abs:[],all:[],est:ui.minutes};
   }
-  const mainIds = (ORDER[type]||{}).fixed || [];
+  const mainIds = ((ORDER[type]||{}).fixed || []).map(useFor);
   const e = type==="light" ? Object.assign({}, base, LIGHT, {label:"Light day", v:base.v, ph, mainIds, mainSets:2, mult:LIGHT.mult*C.mult, note:"About 80% of your working weights, 2 easy sets each. It won't lower your numbers."})
     : Object.assign({}, base, {ph, mainIds, mult:base.mult*(ph.deload?.8:1)*C.mult,
         sets: base.v===1 ? 2 : ph.sets, mainSets: base.v===1 ? 2 : ph.mainSets, rest: base.v<=2 ? Math.min(ph.rest, 90) : ph.rest,
@@ -1100,6 +1141,9 @@ function buildPlan(){
     }
     candidates = [...ord.fixed, ...rot];
   }
+  // swapped moves take the original's place; a slot is skipped if its move is already in the plan
+  const from = {};
+  candidates = candidates.map(o=>{ const u = useFor(o); if(!(u in from)) from[u] = o; return u; }).filter((u,i,a)=>a.indexOf(u)===i);
   const absSets = 2, absCost = cost(absSets,CORE_REST);
   const wantAbs = ui.minutes>=20;
   const reserve = wantAbs ? absCost : 0;
@@ -1109,13 +1153,15 @@ function buildPlan(){
     if(type!=="light" && e.v===5 && items.length===0 && ui.minutes>=30 && !ph.deload) sets += 1;
     const c = cost(sets);
     if(used + c + reserve > budget + 0.5 && items.length>0) break;
-    items.push({id,sets,rest:e.rest}); used += c;
+    items.push({id,from:from[id]||id,sets,rest:e.rest}); used += c;
   }
   const abs = [];
   if(wantAbs){
     const nCore = sessions.filter(s=>s.type!=="recovery" && s.date!==TODAY).length*2;
     const nAbs = (budget-used) >= absCost*2 ? 2 : 1;
-    for(let i=0;i<nAbs;i++){ abs.push({id:corePool?corePool[i]:ORDER.core[(nCore+i)%ORDER.core.length],sets:absSets,rest:CORE_REST}); used += absCost; }
+    const pool = [...new Set((corePool || ORDER.core.map((_,i)=>ORDER.core[(nCore+i)%ORDER.core.length])).map(o=>o))];
+    const picked = []; for(const o of pool){ const u = useFor(o); if(!picked.some(p=>p.id===u)) picked.push({id:u, from:o}); if(picked.length===nAbs) break; }
+    for(const p of picked){ abs.push({id:p.id,from:p.from,sets:absSets,rest:CORE_REST}); used += absCost; }
   }
   return {type,C,e,walk,items,abs,all:[...items,...abs],est:Math.round(used+(walk?walk.min:0))};
 }
@@ -1291,7 +1337,7 @@ function labelWeek(){
 function renderBouquet(){
   const el = $("#bouquet"); if(!el) return;
   const W = DX.wk.map[DX.wk.curKey];
-  el.style.display = ui.tab==="today" && !ui.live ? "" : "none";
+  el.style.display = "";
   if(!W) return;
   const reveal = ui.reveal && ui.reveal.week===W.key ? ui.reveal.i : -1;
   el.innerHTML = arrangementSVG(W.mood, W.n, {gold:W.complete, charm:DX.events.some(e=>e.week===W.key), reveal, hint:false});
@@ -1394,7 +1440,8 @@ function todayPreview(plan, inProgress){
   if(plan.walk) rows += `<div class="pv"><span>Treadmill walk</span><span class="muted num">${plan.walk.min} min</span></div>`;
   if(plan.type==="recovery") rows += plan.stretches.map(([nm])=>`<div class="pv"><span>${esc(nm)}</span></div>`).join("");
   else rows += plan.all.map(it=>{ const d = draft.entries[it.id], L = LIB[it.id];
-    return `<div class="pv${d.done?" done":""}"><span>${d.done?"✓ ":""}${esc(L.name)}</span><span class="muted num">${it.sets} × ${d.target.reps}${L.bw?"":` · ${d.target.w} ${unitOf(it.id)}`}</span></div>`; }).join("");
+    const canSwap = !d.sets.length && GROUP_OF[it.from||it.id] && GROUP_OF[it.from||it.id].length>1;
+    return `<div class="pv${d.done?" done":""}"><span>${d.done?"✓ ":""}${esc(L.name)}</span><span class="muted num">${it.sets} × ${d.target.reps}${L.bw?"":` · ${d.target.w} ${unitOf(it.id)}`}${canSwap?`<button class="pv-swap" data-act="swap" data-id="${it.id}" aria-label="Swap ${esc(L.name)}" title="Swap for a similar move">⇄</button>`:""}</span></div>`; }).join("");
   return `<section style="display:flex;flex-direction:column;gap:12px" aria-label="Today's workout">
     <div class="plan-head">
       <div><p class="eyebrow">Today's workout${inProgress?" · in progress":""}</p><h2>${TYPE_NAME[plan.type]}</h2>${plan.type==="mix"?`<p class="small muted">A random mix of legs and upper body, just for today.</p>`:""}</div>
@@ -1568,7 +1615,8 @@ function flowView(it, plan, d){
       </div>${setList(id,d)}`;
   } else if(n<total){
     const prev = n>0 && prevSets && prevSets[n] ? `Last time set ${n+1}: ${ex.bw?"":prevSets[n].w+" "+u+" × "}${prevSets[n].reps}` : "";
-    body = `${n===0?`<p class="cue">${esc(ex.cue)}</p>`:""}${cheer}
+    const alt = n===0 && GROUP_OF[it.from||id] && GROUP_OF[it.from||id].length>1 ? swapTarget(it.from||id, plan) : null;
+    body = `${n===0?`<p class="cue">${esc(ex.cue)}</p>${alt && alt!==id ? `<button class="linkbtn swapline" data-act="swap" data-id="${id}">Can't do this one? Swap for ${esc(LIB[alt].name)}</button>` : ""}`:""}${cheer}
       <div class="sethead"><h3>Set ${n+1} <span class="muted" style="font-size:16px">of ${total}</span></h3>${ticks}</div>
       <p class="target">Goal: <b>${ex.bw?"":`${d.target.w} ${u} × `}${d.target.reps}</b> ${repWord(id)}${perSide(id)}${prev?` <span class="muted small">· ${esc(prev)}</span>`:""}</p>
       ${ex.timed?holdTimer(id, d):""}
@@ -1638,11 +1686,14 @@ function renderProgress(){
   ];
   /* a surprise mix fills whichever lifting slot is still open */
   for(const m of mixS){ const open = slots.slice(0,2).find(x=>!x.s); if(open && !slots.some(x=>x.s===m)) open.s = m; }
+  const Wk = DX.wk.map[DX.wk.curKey], vdates = Wk ? [...Wk.dates].sort() : [];
+  const faceFor = v=>{ const i = vdates.indexOf(v.date); const f = Wk && i>=0 && i<3 ? MOODS[Wk.mood][1][i] : null; return f ? fhead(f[0], f[1], 40, 40, 22) : ""; };
   const ring = sl=>{
     const v = sl.s;
     if(!v) return `<div class="vring"><svg viewBox="0 0 80 80" aria-hidden="true"><circle cx="40" cy="40" r="34" fill="none" stroke="${sl.c}" stroke-opacity=".55" stroke-dasharray="2 4" stroke-width="1.5"/></svg><b>${sl.label}</b><span>Still to come</span></div>`;
     const lbl = v.type==="light" ? "Light day" : v.type==="mix" ? "Surprise mix" : sl.label;
-    return `<div class="vring done"><svg viewBox="0 0 80 80" aria-hidden="true"><circle cx="40" cy="40" r="34" fill="${sl.soft}" stroke="${sl.c}" stroke-width="3"/><text x="40" y="46" text-anchor="middle" class="vday">${DAYS[parseKey(v.date).getDay()]}</text></svg><b>${lbl}</b><span>${v.minutes||0} min</span></div>`;
+    const face = faceFor(v);
+    return `<div class="vring done"><svg viewBox="0 0 80 80" aria-hidden="true"><circle cx="40" cy="40" r="34" fill="${sl.soft}" stroke="${sl.c}" stroke-width="3"/>${face || `<text x="40" y="46" text-anchor="middle" class="vday">${DAYS[parseKey(v.date).getDay()]}</text>`}</svg><b>${lbl}</b><span>${v.duration?fmtDuration(v.duration):`${v.minutes||0} min`}</span></div>`;
   };
   let out = `<div class="wrap" style="padding:0">
   ${monthCard()}
@@ -1784,7 +1835,7 @@ ${programView()}
 
   <div class="sectionhead"><p class="eyebrow">Working weights</p><h3>Adjust any number here</h3><p class="small muted">A number you type here becomes your starting point. Future workouts build from it.</p></div>
   <div class="tbl-wrap wtable"><table><thead><tr><th>Exercise</th><th class="r">Weight (lb)</th><th class="r">Reps</th></tr></thead><tbody>
-  ${Object.keys(LIB).map(id=>`<tr><td>${esc(LIB[id].name)}${LIB[id].db?` <span class="muted small">dumbbell</span>`:""}</td><td class="r">${LIB[id].bw?`<span class="muted small">—</span>`:`<input id="ww-${id}" type="number" step="any" min="0" placeholder="${LIB[id].start}" value="${DER.W[id]?.w||""}" data-act="ww" data-id="${id}" aria-label="${esc(LIB[id].name)} weight">`}</td><td class="r"><input id="wr-${id}" type="number" min="1" max="90" placeholder="${range(id).start}" value="${DER.W[id]?.reps||""}" data-act="wr" data-id="${id}" aria-label="${esc(LIB[id].name)} ${LIB[id].timed?"seconds":"reps"}" style="width:58px"></td></tr>`).join("")}
+  ${Object.keys(LIB).filter(id=>SWAP_GROUPS.some(g=>useFor(g[0])===id) || DER.W[id]).map(id=>`<tr><td>${esc(LIB[id].name)}${LIB[id].db?` <span class="muted small">dumbbell</span>`:""}</td><td class="r">${LIB[id].bw?`<span class="muted small">—</span>`:`<input id="ww-${id}" type="number" step="any" min="0" placeholder="${LIB[id].start}" value="${DER.W[id]?.w||""}" data-act="ww" data-id="${id}" aria-label="${esc(LIB[id].name)} weight">`}</td><td class="r"><input id="wr-${id}" type="number" min="1" max="90" placeholder="${range(id).start}" value="${DER.W[id]?.reps||""}" data-act="wr" data-id="${id}" aria-label="${esc(LIB[id].name)} ${LIB[id].timed?"seconds":"reps"}" style="width:58px"></td></tr>`).join("")}
   </tbody></table></div>
   </div>`;
 }
@@ -1807,6 +1858,18 @@ function safeRender(){
 
 /* ---------- actions ---------- */
 function scrollToEx(id){ requestAnimationFrame(()=>{ const el=document.querySelector(`[data-act="open"][data-id="${id}"]`); if(el) el.scrollIntoView({behavior:"smooth",block:"start"}); }); }
+/* Swap: move to the next exercise in the same muscle group that isn't already in today's plan */
+function swapTarget(orig, plan){
+  const g = GROUP_OF[orig] || [orig], cur = useFor(orig), inPlan = new Set(plan.all.map(x=>x.id));
+  for(let k=1;k<=g.length;k++){ const c = g[(g.indexOf(cur)+k)%g.length]; if(c===cur || !inPlan.has(c)) return c; }
+  return cur;
+}
+async function doSwap(orig, plan){
+  const next = swapTarget(orig, plan);
+  state.swaps = Object.assign({}, state.swaps||{});
+  if(next===orig) delete state.swaps[orig]; else state.swaps[orig] = next;
+  await store.saveState();
+}
 /* the next set starts from the last one you logged */
 function carryLast(d){ const l = d.sets[d.sets.length-1]; if(l){ d.inW = Number(l.w)||0; d.inReps = Number(l.reps)||0; } }
 function readInputs(id){
@@ -1818,7 +1881,7 @@ function readInputs(id){
 function lastBackup(){ try{ return localStorage.getItem("coach.lastBackup"); }catch(e){ return null; } }
 function backupDaysAgo(){ const d=lastBackup(); return d ? Math.floor((new Date(TODAY)-new Date(d))/864e5) : Infinity; }
 function markBackup(){ try{ localStorage.setItem("coach.lastBackup", TODAY); }catch(e){} }
-function exportData(){ return JSON.stringify({app:"cassie-gym-coach", version:3, exportedAt:new Date().toISOString(), manual:state.manual||{}, sessions}, null, 2); }
+function exportData(){ return JSON.stringify({app:"cassie-gym-coach", version:3, exportedAt:new Date().toISOString(), manual:state.manual||{}, swaps:state.swaps||{}, sessions}, null, 2); }
 
 document.addEventListener("pointerdown", unlockAudio, {once:true});
 $("#week").addEventListener("scroll", ()=>{ clearTimeout(labelWeek.t); labelWeek.t = setTimeout(labelWeek, 60); }, {passive:true});
@@ -1853,6 +1916,7 @@ document.addEventListener("click", async ev=>{
     else { d.inReps = Math.max(0,(Number(d.inReps)||0) + Number(t.dataset.d)*(LIB[id].timed?5:1)); const el=document.getElementById("in-r-"+id); if(el) el.value=d.inReps; }
     d.touched = true; persistDraft();
   }
+  else if(a==="swap"){ const plan = buildPlan(); const it = plan.all.find(x=>x.id===id); if(it){ await doSwap(it.from||id, plan); if(ui.open===id) ui.open = useFor(it.from||id); render(); } }
   else if(a==="hold-start"){ unlockAudio(); keepAwake(); ui.rest=null; ui.hold={id, phase:"ready", t0:Date.now(), side:1}; if(!holdTick.t) holdTick.t=setInterval(holdTick, 200); render(); }
   else if(a==="hold-cancel"){ ui.hold=null; render(); }
   else if(a==="hold-stop"){
@@ -1989,6 +2053,7 @@ document.addEventListener("click", async ev=>{
       for(const s of ip.sessions){ if(replace || !have.has(s.id)){ await store.putSession(s); if(!have.has(s.id)) added++; } }
       if(replace){ for(const s of [...sessions]) if(!incoming.has(s.id)){ await store.deleteSession(s.id); removed++; } }
       if(replace) state.manual = ip.manual||{}; else state.manual = Object.assign({}, ip.manual||{}, state.manual||{});
+      if(ip.swaps) state.swaps = replace ? ip.swaps : Object.assign({}, ip.swaps, state.swaps||{});
       await store.saveState(); markBackup();
       ui.dataMsg = replace ? `Replaced: ${ip.sessions.length} workouts now in your coach${removed?`, ${removed} removed`:""}.` : `Imported ${added} new workout${added===1?"":"s"}.`;
     }catch(e){ ui.dataMsg = "Import stopped partway, possibly because the phone is out of space. Import the same file again. Nothing gets doubled."; }
@@ -2014,7 +2079,7 @@ document.addEventListener("change", async ev=>{
       const list = data.sessions.filter(s=>s && s.id && s.date && /^\d{4}-\d{2}-\d{2}$/.test(s.date)).map(s=>{ const {id,...rest}=s; return Object.assign({id:String(id).replace(/[^A-Za-z0-9_\-.~:@+]/g,"-")}, rest); });
       const dates = list.map(s=>s.date).sort();
       const have = new Set(sessions.map(s=>s.id));
-      ui.importPreview = {sessions:list, manual:(data.manual && typeof data.manual==="object")?data.manual:{}, first:dates[0], last:dates[dates.length-1], newCount:list.filter(s=>!have.has(s.id)).length};
+      ui.importPreview = {sessions:list, manual:(data.manual && typeof data.manual==="object")?data.manual:{}, swaps:(data.swaps && typeof data.swaps==="object")?data.swaps:null, first:dates[0], last:dates[dates.length-1], newCount:list.filter(s=>!have.has(s.id)).length};
       ui.dataMsg = null;
     }catch(e){ ui.importPreview=null; ui.dataMsg="That file isn't a gym coach backup. Choose a .json file you exported from here."; }
     t.value=""; render(); return;
