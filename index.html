@@ -136,6 +136,11 @@ header.top{display:flex;flex-direction:column;gap:6px;padding-bottom:16px;border
 .pv{display:flex;justify-content:space-between;gap:10px;padding:10px 14px;border-top:1px solid var(--hair);font-size:14px}
 .pv:first-child{border-top:0}
 .pv.done{color:var(--muted)}
+.stars{display:flex;gap:4px}
+.star{border:0;background:transparent;font-size:30px;line-height:1;padding:2px 3px;color:var(--hair);-webkit-text-stroke:1px var(--muted)}
+.star.on{color:var(--gold);-webkit-text-stroke:1px var(--gold)}
+.hist-stars{color:var(--gold);letter-spacing:1px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 .btn.start{padding:15px 18px;font-size:16px}
 body.live header.top, body.live .weekwrap, body.live nav.tabs{display:none}
 body.live{padding-top:0;padding-bottom:40px}
@@ -189,7 +194,8 @@ body.live{padding-top:0;padding-bottom:40px}
 .ex{border-top:1px solid var(--hair)}
 .ex:first-child{border-top:0}
 .ex.done{background:var(--cafe-soft)}
-.ex.active{background:var(--surface);box-shadow:inset 3px 0 0 var(--rose)}
+.ex.active{background:var(--blush);box-shadow:inset 3px 0 0 var(--rose)}
+.ex.active .stepper,.ex.active .logbtns button:not([aria-pressed="true"]){background:var(--surface)}
 .ex-main{display:grid;grid-template-columns:1fr auto;gap:3px 14px;padding:14px 16px;align-items:center;width:100%;text-align:left;border:0;background:transparent}
 .ex-name{font-weight:600;font-size:15.5px;display:flex;align-items:center;gap:9px}
 .check{width:17px;height:17px;border-radius:50%;border:1px solid var(--line);display:inline-grid;place-items:center;font-size:10px;flex:none}
@@ -233,7 +239,8 @@ body.live{padding-top:0;padding-bottom:40px}
 .logbtns{display:grid;grid-template-columns:1fr 1.3fr 1fr;border:1px solid var(--line)}
 .logbtns button{border:0;border-left:1px solid var(--line);background:var(--surface);padding:14px 4px;font-weight:600;font-size:14.5px}
 .logbtns button:first-child{border-left:0}
-.logbtns button.main{background:var(--ink);color:var(--on-ink)}
+.logbtns button[aria-pressed="true"]{background:var(--ink);color:var(--on-ink)}
+.btn.logset{padding:14px 18px;font-size:15.5px}
 .logbtns button:active{background:var(--cafe-soft);color:var(--ink)}
 .hint{font-size:12.5px;color:var(--muted)}
 .logged{display:flex;flex-direction:column;border-top:1px solid var(--hair)}
@@ -266,7 +273,13 @@ textarea{width:100%;min-height:66px;resize:vertical}
 .btn:disabled{opacity:.45;cursor:default}
 .btn:disabled:hover{background:var(--ink);border-color:var(--ink)}
 .linkbtn{border:0;background:transparent;color:var(--muted);text-decoration:underline;text-underline-offset:3px;font-size:13px;padding:4px}
-.walk{border:1px solid var(--line);background:var(--sage-soft)}
+.walk{border:1px solid var(--line);background:var(--butter-soft);display:flex;gap:14px;align-items:center;padding:13px 16px;width:100%;text-align:left;color:var(--ink);font:inherit}
+.walk .check{width:22px;height:22px;font-size:12px}
+.walk.done .check{background:var(--ink);color:var(--on-ink)}
+.walk.done .big,.walk.done .grow{opacity:.55}
+.walk .big{font-family:var(--display);font-size:28px;font-weight:300;line-height:1;min-width:52px}
+.walk .big small{font-family:var(--body);font-size:12px;color:var(--muted)}
+.walk .grow{flex:1}
 .walk-top{display:flex;gap:16px;align-items:center;padding:13px 16px}
 .walk-top .big{font-family:var(--display);font-size:28px;font-weight:300;line-height:1;min-width:52px}
 .walk-top .big small{font-family:var(--body);font-size:12px;color:var(--muted)}
@@ -1019,7 +1032,7 @@ function prescribe(id, e){
 function lastMsg(id, st, todayW){
   const L = st.last, u = unitOf(id), rw = repWord(id);
   const W = todayW ?? st.w, R = st.reps || range(id).start;
-  if(!L) return st.w ? {read:null, plan:`Your starting point: ${W} ${u} for ${R} ${rw}.`} : null;
+  if(!L) return null;
   const base = {date:L.date, sets:L.sets};
   if(LIB[id].bw) return Object.assign(base, L.change==="reps" ? {read:"Every set done.", plan:`Aim for ${R} ${rw} each set today.`} : {read:"Good work.", plan:`Own ${R} ${rw} every set today.`});
   if(L.change==="between") return Object.assign(base, {read:`${L.proven} ${u} felt good. ${L.pushed} ${u} was a stretch.`, plan:`Meet in the middle at ${W} ${u} today.`});
@@ -1226,22 +1239,12 @@ setInterval(rotateAffirm, 15000);
 
 function walkCard(plan){
   const w = plan.walk; if(!w) return "";
-  const t = ui.walkT;
-  let inner = "";
-  if(t){
-    const left = leftOf(t);
-    const first = plan.all.find(it=>!draft || !draft.entries[it.id]?.done);
-    inner = `<div class="flow"><div class="timer">
-      <div class="ring">${ringSVG("walk-arc", left/t.total)}<div class="clock"><b id="walk-clock">${fmtClock(left)}</b><span>${t.done?"Walk done":t.paused?"Paused":"Walking"}</span></div></div>
-      <p class="small muted" id="walk-line">${t.done?"Nice warm-up. Your muscles are ready.":esc(t.line)}</p>
-      <div class="btnrow">${t.done
-        ? (first?`<button class="btn" data-act="walk-next" data-id="${first.id}">Start ${esc(LIB[first.id].name)}</button>`:"") + `<button class="btn ghost sm" data-act="walk-reset">Close timer</button>`
-        : `<button class="btn ghost sm" data-act="walk-pause">${t.paused?"Resume":"Pause"}</button><button class="btn ghost sm" data-act="walk-add">+1 min</button><button class="btn sm" data-act="walk-end">Done walking</button>`}</div>
-    </div></div>`;
-  }
-  return `<div class="walk">
-    <div class="walk-top"><div class="big num">${w.min}<small> min</small></div><div class="grow"><div style="font-weight:600">${plan.type==="recovery"?"Easy treadmill walk":"Treadmill walk"}</div><div class="muted small">${w.speed}, ${w.incline} incline</div></div>
-    ${t?"":`<button class="btn sm" data-act="walk-start" data-min="${w.min}">Start timer</button>`}</div>${inner}</div>`;
+  const done = !!liveGet().walkDone;
+  return `<button class="walk${done?" done":""}" data-act="walk-check" aria-pressed="${done}">
+    <span class="check" aria-hidden="true">${done?"✓":""}</span>
+    <span class="big num">${w.min}<small> min</small></span>
+    <span class="grow"><span style="font-weight:600;display:block">${plan.type==="recovery"?"Easy treadmill walk":"Treadmill walk"}</span><span class="muted small">${w.speed}, ${w.incline} incline</span></span>
+  </button>`;
 }
 
 function renderToday(){
@@ -1305,15 +1308,15 @@ function renderLive(plan){
     out += `<div class="coachnote"><b>Recovery is part of the program.</b> A walk and some mobility today help you get more out of the next lift.</div>`;
     out += walkCard(plan) + `<p class="eyebrow">Stretch & mobility</p>
     <div class="list">${plan.stretches.map(([n,d])=>`<div class="ex"><div class="ex-main"><div class="ex-name">${esc(n)}</div><div class="ex-rx" style="padding-left:0">${esc(d)}</div></div></div>`).join("")}</div>
-    <div class="finish"><label for="rec-note" class="eyebrow">How does your body feel today?</label><textarea id="rec-note" placeholder="Sore spots, sleep, stress…"></textarea><button class="btn full" data-act="save-recovery">Log recovery day</button></div>`;
+    <div class="finish"><span class="eyebrow">How was it?</span>${starsRow()}<label for="rec-note" class="eyebrow">How does your body feel today?</label><textarea id="rec-note" placeholder="Sore spots, sleep, stress…">${esc(liveGet().recNote||"")}</textarea><button class="btn full" data-act="save-recovery">Log recovery day</button></div>`;
   } else {
-    out += `<div class="coachnote"><b>${esc(e.label)} energy:</b> ${esc(e.note)} Rest ${e.rest>=120?"2 min":e.rest+" sec"} between sets. Aim for ${e.effort} effort.</div>`;
     out += walkCard(plan);
     out += `<p class="eyebrow">Machines</p><div class="list">${plan.items.map(it=>exCard(it,plan)).join("")}</div>`;
     if(plan.abs.length) out += `<p class="eyebrow">Core on the mat</p><div class="list">${plan.abs.map(it=>exCard(it,plan)).join("")}</div>`;
     const doneN = plan.all.filter(it=>draft.entries[it.id]?.sets.length).length;
     out += `<div class="finish">
-      <label class="eyebrow" for="sess-note">How did today go overall?</label>
+      <span class="eyebrow">How did today go overall?</span>${starsRow()}
+      <label class="sr-only" for="sess-note">Notes</label>
       <textarea id="sess-note" placeholder="Anything to remember next week? e.g. leg press seat on 6, knees felt great">${esc(draft.note||"")}</textarea>
       <button class="btn full" data-act="save" ${doneN?"":"disabled"}>Save workout${doneN?` · ${doneN} of ${plan.all.length} exercises`:""}</button>
       ${doneN?"":`<p class="muted small" style="text-align:center">Tap an exercise to start your first set.</p>`}
@@ -1330,6 +1333,13 @@ function setLive(on){
     if(on){ const st = liveStart() || Date.now(); localStorage.setItem("coach.live", JSON.stringify({date:TODAY, start:st, on:true})); }
     else { const l = JSON.parse(localStorage.getItem("coach.live")||"null"); if(l) localStorage.setItem("coach.live", JSON.stringify(Object.assign(l,{on:false}))); }
   }catch(e){}
+}
+function readNotes(){ const n=$("#sess-note"); if(n && draft) { draft.note=n.value; persistDraft(); } const r=$("#rec-note"); if(r) livePut({recNote:r.value}); }
+function liveGet(){ try{ const l = JSON.parse(localStorage.getItem("coach.live")||"null"); return l && l.date===TODAY ? l : {}; }catch(e){ return {}; } }
+function livePut(patch){ try{ localStorage.setItem("coach.live", JSON.stringify(Object.assign({date:TODAY, start:Date.now(), on:!!ui.live}, liveGet(), patch))); }catch(e){} }
+function starsRow(){
+  const r = liveGet().rating||0;
+  return `<div class="stars" role="radiogroup" aria-label="Rate this workout">${[1,2,3,4,5].map(n=>`<button class="star${n<=r?" on":""}" data-act="rate" data-v="${n}" role="radio" aria-checked="${n===r}" aria-label="${n} star${n>1?"s":""}">★</button>`).join("")}</div>`;
 }
 function endLive(){ ui.live = false; try{ localStorage.removeItem("coach.live"); }catch(e){} }
 setInterval(()=>{ const c = document.getElementById("live-clock"); if(c) c.textContent = fmtClock(liveElapsed()); }, 1000);
@@ -1433,12 +1443,9 @@ function flowView(it, plan, d){
         ${ex.bw?"":`<div class="stepper"><span class="lbl">Weight · ${u}</span><div class="ctl"><button type="button" data-act="adj" data-f="w" data-d="-1" data-id="${id}" aria-label="Less weight">−</button><input id="in-w-${id}" type="text" inputmode="decimal" autocomplete="off" value="${esc(d.inW)}" data-act="inW" data-id="${id}" aria-label="Weight used"><button type="button" data-act="adj" data-f="w" data-d="1" data-id="${id}" aria-label="More weight">+</button></div></div>`}
         <div class="stepper"><span class="lbl">${ex.timed?"Seconds held":"Reps done"}</span><div class="ctl"><button type="button" data-act="adj" data-f="r" data-d="-1" data-id="${id}" aria-label="Fewer">−</button><input id="in-r-${id}" type="text" inputmode="numeric" autocomplete="off" value="${esc(d.inReps)}" data-act="inR" data-id="${id}" aria-label="${ex.timed?"Seconds held":"Reps done"}"><button type="button" data-act="adj" data-f="r" data-d="1" data-id="${id}" aria-label="More">+</button></div></div>
       </div>
-      <span class="lbl">Log set ${n+1} · how did it feel?</span>
-      <div class="logbtns">
-        <button data-act="log" data-g="easy" data-id="${id}" data-rest="${it.rest}" data-total="${total}">Easy</button>
-        <button class="main" data-act="log" data-g="right" data-id="${id}" data-rest="${it.rest}" data-total="${total}">Just right</button>
-        <button data-act="log" data-g="hard" data-id="${id}" data-rest="${it.rest}" data-total="${total}">Hard</button>
-      </div>
+      <span class="lbl">Set ${n+1} · how did it feel?</span>
+      <div class="logbtns" role="radiogroup">${["easy","right","hard"].map(g=>`<button data-act="pick-grade" data-g="${g}" data-id="${id}" role="radio" aria-pressed="${(d.pick||"right")===g}" aria-checked="${(d.pick||"right")===g}">${GRADE[g]}</button>`).join("")}</div>
+      <button class="btn full logset" data-act="log" data-g="${d.pick||"right"}" data-id="${id}" data-rest="${it.rest}" data-total="${total}">Log set ${n+1}</button>
       ${n===total-1?`<p class="hint">A hard last set is normal. The coach looks at all your sets together.</p>`:""}
       ${setList(id,d)}`;
   } else {
@@ -1556,7 +1563,7 @@ function renderHistory(){
       <button class="hist-head" data-act="hist" data-id="${esc(s.id)}" aria-expanded="${open}">
         <span><b>${DAYS[parseKey(s.date).getDay()]}, ${fmtFull(s.date)}</b> <span class="pill ${s.type}" style="margin-left:6px">${TYPE_NAME[s.type]||esc(s.type)}</span></span>
         <span class="small muted num">${s.minutes||0} min</span>
-        <span class="small muted" style="grid-column:1/-1">${s.bonus?"Bonus day · ":s.week?`Week ${s.week} · ${esc(s.phase||"")} · `:""}${energyOf(s.energy).label} energy${exs.length?` · ${exs.length} exercises`:""}${s.note?` · “${esc(s.note)}”`:""}</span>
+        <span class="small muted" style="grid-column:1/-1">${s.rating?`<span class="hist-stars" aria-label="${s.rating} of 5 stars">${"★".repeat(s.rating)}${"☆".repeat(5-s.rating)}</span> · `:""}${s.bonus?"Bonus day · ":s.week?`Week ${s.week} · ${esc(s.phase||"")} · `:""}${energyOf(s.energy).label} energy${exs.length?` · ${exs.length} exercises`:""}${s.note?` · “${esc(s.note)}”`:""}</span>
       </button>
       ${open?`<div class="hist-body">
         ${exs.length?exs.map(x=>`<div class="hist-ex"><b>${esc(LIB[x.id]?.name||x.id)}</b><br><span class="num">${(x.sets||[]).map(y=>`${LIB[x.id]?.bw?"":y.w+"×"}${y.reps}${y.grade&&y.grade!=="right"?` (${GRADE[y.grade].toLowerCase()})`:""}`).join(" · ")}</span>${x.note?`<br><span class="small muted">“${esc(x.note)}”</span>`:""}</div>`).join(""):`<p class="small muted">${s.type==="recovery"?"Recovery walk and stretching.":"No sets logged."}</p>`}
@@ -1676,11 +1683,14 @@ document.addEventListener("click", async ev=>{
     else { d.inReps = Math.max(0,(Number(d.inReps)||0) + Number(t.dataset.d)*(LIB[id].timed?5:1)); const el=document.getElementById("in-r-"+id); if(el) el.value=d.inReps; }
     d.touched = true; persistDraft();
   }
+  else if(a==="pick-grade"){ readInputs(id); draft.entries[id].pick = t.dataset.g; persistDraft(); render(); }
+  else if(a==="walk-check"){ livePut({walkDone:!liveGet().walkDone}); render(); }
+  else if(a==="rate"){ const v=Number(t.dataset.v); readNotes(); livePut({rating: liveGet().rating===v ? 0 : v}); render(); }
   else if(a==="log"){
     readInputs(id);
     const d = draft.entries[id];
     const set = {w:LIB[id].bw?0:Number(d.inW)||0, reps:Number(d.inReps)||0, grade:t.dataset.g};
-    d.sets.push(set); d.touched = true;
+    d.sets.push(set); d.touched = true; d.pick = "right";
     const n = d.sets.length, total = Number(t.dataset.total);
     const prev = lastSessionSets(id), p = prev && prev[n-1];
     let text;
@@ -1716,12 +1726,6 @@ document.addEventListener("click", async ev=>{
   }
 
   /* treadmill timer */
-  else if(a==="walk-start"){ const m=Number(t.dataset.min); ui.walkT={total:m*60, endsAt:Date.now()+m*60000, paused:false, left:m*60, done:false, line:rnd(WALK_LINES), lineAt:Date.now()}; unlockAudio(); keepAwake(); ensureTick(); render(); }
-  else if(a==="walk-pause"){ const w=ui.walkT; if(!w) return; if(w.paused){ w.endsAt=Date.now()+w.left*1000; w.paused=false; } else { w.left=leftOf(w); w.paused=true; } render(); }
-  else if(a==="walk-add"){ const w=ui.walkT; if(!w) return; if(w.paused) w.left+=60; else w.endsAt+=60000; w.total+=60; tick(); }
-  else if(a==="walk-end"){ if(ui.walkT){ ui.walkT.done=true; ui.walkT.paused=false; } render(); }
-  else if(a==="walk-reset"){ ui.walkT=null; render(); }
-  else if(a==="walk-next"){ ui.walkT=null; ui.open=id; render(); scrollToEx(id); }
 
   /* save */
   else if(a==="save"){
@@ -1730,7 +1734,7 @@ document.addEventListener("click", async ev=>{
       const rg = repRange(it.id, plan.e);
       return {id:it.id, target:d.target, planned:it.sets, range:{lo:rg.lo, hi:rg.hi}, sets:d.sets.map(s=>({w:Number(s.w)||0,reps:Number(s.reps)||0,grade:s.grade||"right"})), note:d.note||""};}).filter(x=>x.sets.length);
     const noteEl = $("#sess-note");
-    const s = Object.assign({id:TODAY+"-"+plan.type+"-"+Date.now().toString(36), v:3, date:TODAY, type:plan.type, minutes:ui.minutes, energy:ui.energy, walk:plan.walk?plan.walk.min:0, exercises, note:noteEl?noteEl.value:"", createdAt:new Date().toISOString()}, progFields(plan.C));
+    const s = Object.assign({id:TODAY+"-"+plan.type+"-"+Date.now().toString(36), v:3, date:TODAY, type:plan.type, minutes:ui.minutes, energy:ui.energy, walk:plan.walk && liveGet().walkDone?plan.walk.min:0, rating:liveGet().rating||0, exercises, note:noteEl?noteEl.value:"", createdAt:new Date().toISOString()}, progFields(plan.C));
     const after = computeAll([...sessions, s]).W;
     const changes = exercises.map(x=>{ const st=after[x.id]; return st&&st.last ? `${LIB[x.id].name}: ${nextLine(x.id, st)}` : null; }).filter(Boolean);
     const summ = summarize(s);
@@ -1743,7 +1747,7 @@ document.addEventListener("click", async ev=>{
   }
   else if(a==="save-recovery"){
     const note = ($("#rec-note")||{}).value||"";
-    const s = Object.assign({id:TODAY+"-recovery-"+Date.now().toString(36), v:3, date:TODAY, type:"recovery", minutes:ui.minutes, energy:ui.energy, walk:ui.minutes, exercises:[], note, createdAt:new Date().toISOString()}, progFields(coachToday()));
+    const s = Object.assign({id:TODAY+"-recovery-"+Date.now().toString(36), v:3, date:TODAY, type:"recovery", minutes:ui.minutes, energy:ui.energy, walk:ui.minutes, rating:liveGet().rating||0, exercises:[], note, createdAt:new Date().toISOString()}, progFields(coachToday()));
     const summ = summarize(s);
     try{ await store.putSession(s); ui.saved=Object.assign(summ,{changes:[]}); endLive(); ui.focus="auto"; try{localStorage.setItem("coach.mix",JSON.stringify({date:dkeyNow(),seed:ui.mixSeed,on:false}));}catch(e){} ui.walkT=null; render(); }catch(e){ t.textContent="Couldn't save. Tap to try again."; }
   }
