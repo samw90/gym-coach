@@ -22,6 +22,7 @@ A personal, phone-first workout coach for machine training at Lifetime (Plymouth
 - UI: `focusCard()` ("Your focus for today" / "Next up" / "Your pick today" + coach's adjustment) at the top of Today; `programView()` on My plan.
 - `buildPlan()` sizes the workout to the time budget. `ui.focus`: `auto` (follows the program), `lower`, `upper`, `recovery`, `light`, or `mix` (Surprise me, a seeded random shuffle stored in `localStorage` under `coach.mix`).
 - `draft`: the workout in progress, saved to `localStorage` (`coach.draft`) until the whole session is saved. The header dot turns red while logged sets are unsaved.
+- Today has two modes. The overview (`renderToday`: focus card, flowers, check-in, `todayPreview` with a **Start workout** button) and workout mode (`renderLive`), which hides the header, week strip and tabs (`body.live`) and shows a sticky bar with ‹ Overview, the workout name and an elapsed clock. `coach.live` `{date,start,on}` in localStorage brings her back into workout mode after a reload; saving ends it.
 - Guided set flow: stepper inputs, then log the set as Easy / Just right / Hard, then a rest timer. There's also a treadmill timer. Sets can be edited or deleted.
 - **Progression is derived, never stored.** `computeAll()` replays every session (plus manual overrides in `state.manual`, keyed by timestamp) through `evaluate()`:
   - The "proven" weight is the heaviest weight where the goal reps were hit and it wasn't hard, or was hard only on the final set.

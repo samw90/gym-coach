@@ -132,6 +132,19 @@ header.top{display:flex;flex-direction:column;gap:6px;padding-bottom:16px;border
 .focus-goal .eyebrow{margin-right:6px;font-size:10px}
 .focus-alt{display:flex;flex-direction:column;gap:9px;margin-top:8px;padding-top:14px;border-top:1px solid var(--hair)}
 .focus-alt .linkbtn{align-self:flex-start;padding:0}
+.preview{border:1px solid var(--line);background:var(--surface)}
+.pv{display:flex;justify-content:space-between;gap:10px;padding:10px 14px;border-top:1px solid var(--hair);font-size:14px}
+.pv:first-child{border-top:0}
+.pv.done{color:var(--muted)}
+.btn.start{padding:15px 18px;font-size:16px}
+body.live header.top, body.live .weekwrap, body.live nav.tabs{display:none}
+body.live{padding-top:0;padding-bottom:40px}
+.livebar{position:sticky;top:0;z-index:6;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;margin:0 -16px 14px;padding:12px 16px;background:var(--bg);border-bottom:1px solid var(--line)}
+.livebar .linkbtn{justify-self:start;padding:0;font-size:14px;text-decoration:none;color:var(--ink)}
+.lb-t{display:flex;flex-direction:column;align-items:center;line-height:1.2}
+.lb-t b{font-family:var(--display);font-weight:400;font-size:18px}
+.lb-t span{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.lb-c{justify-self:end;font-size:15px;font-weight:600}
 .prog{border:1px solid var(--line);background:var(--surface)}
 .pw{display:grid;grid-template-columns:62px 1fr auto;align-items:center;gap:10px;padding:10px 14px;border-top:1px solid var(--hair)}
 .pw:first-child{border-top:0}
@@ -519,6 +532,7 @@ function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.im
 function shuffled(arr, rng){ const a=[...arr]; for(let i=a.length-1;i>0;i--){ const j=Math.floor(rng()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
 try{ const u = JSON.parse(localStorage.getItem("coach.ui")||"null"); if(u) Object.assign(ui,{energy:u.energy||3,minutes:u.minutes||20,walk:u.walk!==false}); }catch(e){}
 try{ const d = JSON.parse(localStorage.getItem("coach.draft")||"null"); if(d && d.v===3) draft=d; }catch(e){}
+try{ const l = JSON.parse(localStorage.getItem("coach.live")||"null"); if(l && l.on && l.date===dkeyNow()) ui.live = true; }catch(e){}
 try{ const m = JSON.parse(localStorage.getItem("coach.mix")||"null"); if(m && m.date===dkeyNow()){ ui.mixSeed=m.seed; if(m.on) ui.focus="mix"; } }catch(e){}
 function dkeyNow(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
 function newMix(){ ui.mixSeed = Math.floor(Math.random()*1e9); try{ localStorage.setItem("coach.mix", JSON.stringify({date:dkeyNow(), seed:ui.mixSeed, on:true})); }catch(e){} }
@@ -557,7 +571,7 @@ const dkey = d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 const parseKey = k=>{const [y,m,d]=k.split("-").map(Number); return new Date(y,m-1,d);};
 const fmtShort = k=>parseKey(k).toLocaleDateString(undefined,{month:"short",day:"numeric"});
 const fmtFull = k=>{const d=parseKey(k); return `${d.getMonth()+1}/${d.getDate()}/${d.getFullYear()}`;};
-const fmtClock = s=>`${Math.floor(s/60)}:${pad(s%60)}`;
+const fmtClock = s=>s>=3600 ? `${Math.floor(s/3600)}:${pad(Math.floor(s/60)%60)}:${pad(s%60)}` : `${Math.floor(s/60)}:${pad(s%60)}`;
 function weekStart(d){ const x=new Date(d.getFullYear(),d.getMonth(),d.getDate()); const off=(x.getDay()+6)%7; x.setDate(x.getDate()-off); return x; }
 const today = new Date();
 const TODAY = dkey(today);
@@ -1234,6 +1248,7 @@ function renderToday(){
   const plan = buildPlan();
   const e = plan.e;
   if(plan.type!=="recovery") ensureDraft(plan);
+  if(ui.live) return renderLive(plan);
   let out = `<div class="wrap" style="padding:0">${savedToast()}${focusCard(plan)}${weekCard()}
   <section class="panel" aria-label="Check in">
     <div class="q">
@@ -1251,15 +1266,43 @@ function renderToday(){
   </section>`;
 
 
-  out += `<section style="display:flex;flex-direction:column;gap:12px" aria-label="Today's workout">
+  out += todayPreview(plan) + `</div>`;
+  return out;
+}
+
+/* Overview of today's workout on the Today tab, with the button into workout mode */
+function todayPreview(plan){
+  const e = plan.e, started = plan.type!=="recovery" && draft && Object.values(draft.entries).some(d=>d.sets.length);
+  const n = started ? plan.all.filter(it=>draft.entries[it.id]?.sets.length).length : 0;
+  let rows = "";
+  if(plan.walk) rows += `<div class="pv"><span>Treadmill walk</span><span class="muted num">${plan.walk.min} min</span></div>`;
+  if(plan.type==="recovery") rows += plan.stretches.map(([nm])=>`<div class="pv"><span>${esc(nm)}</span></div>`).join("");
+  else rows += plan.all.map(it=>{ const d = draft.entries[it.id], L = LIB[it.id];
+    return `<div class="pv${d.done?" done":""}"><span>${d.done?"✓ ":""}${esc(L.name)}</span><span class="muted num">${it.sets} × ${d.target.reps}${L.bw?"":` · ${d.target.w} ${unitOf(it.id)}`}</span></div>`; }).join("");
+  return `<section style="display:flex;flex-direction:column;gap:12px" aria-label="Today's workout">
     <div class="plan-head">
       <div><p class="eyebrow">Today's workout</p><h2>${TYPE_NAME[plan.type]}</h2>${plan.type==="mix"?`<p class="small muted">A random mix of legs and upper body, just for today.</p>`:""}</div>
-      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px"><span class="pill ${plan.type}">about ${plan.est} min</span>${plan.type==="mix" && !plan.all.some(it=>draft && draft.entries[it.id] && draft.entries[it.id].sets.length)?`<button class="linkbtn" data-act="reshuffle">Shuffle again</button>`:""}</div>
-    </div>`;
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px"><span class="pill ${plan.type}">about ${plan.est} min</span>${plan.type==="mix" && !started?`<button class="linkbtn" data-act="reshuffle">Shuffle again</button>`:""}</div>
+    </div>
+    ${plan.type==="recovery"?"":`<div class="coachnote"><b>${esc(e.label)} energy:</b> ${esc(e.note)} Rest ${e.rest>=120?"2 min":e.rest+" sec"} between sets. Aim for ${e.effort} effort.</div>`}
+    <div class="preview">${rows}</div>
+    <button class="btn full start" data-act="live-start">${started?`Resume workout · ${n} of ${plan.all.length} started`:plan.type==="recovery"?"Start recovery":"Start workout"}</button>
+  </section>`;
+}
 
+/* Workout mode: just the workout, full screen, until it's saved */
+function renderLive(plan){
+  const C = plan.C, i = C.info;
+  const where = i.type==="mix" ? "Bonus day" : C.mode==="bonus" ? "Bonus day" : `Week ${i.week} · ${i.ph.phase}`;
+  let out = `<div class="livebar">
+    <button class="linkbtn" data-act="live-exit" aria-label="Back to overview">‹ Overview</button>
+    <div class="lb-t"><b>${esc(TYPE_NAME[plan.type])}</b><span>${esc(where)}</span></div>
+    <span class="lb-c num" id="live-clock">${fmtClock(liveElapsed())}</span>
+  </div>
+  <div class="wrap" style="padding:0"><section style="display:flex;flex-direction:column;gap:12px" aria-label="Workout">`;
+  const e = plan.e;
   if(plan.type==="recovery"){
     out += `<div class="coachnote"><b>Recovery is part of the program.</b> A walk and some mobility today help you get more out of the next lift.</div>`;
-    if(ui.energy>=4 && plan.C.mode==="plan" && plan.C.next.type==="recovery") out += `<div class="offer"><span class="small"><b>Feeling good today?</b> A light full-body day can count as this week's third session.</span><button class="btn ghost sm" data-act="focus" data-v="light">Make it a light day</button></div>`;
     out += walkCard(plan) + `<p class="eyebrow">Stretch & mobility</p>
     <div class="list">${plan.stretches.map(([n,d])=>`<div class="ex"><div class="ex-main"><div class="ex-name">${esc(n)}</div><div class="ex-rx" style="padding-left:0">${esc(d)}</div></div></div>`).join("")}</div>
     <div class="finish"><label for="rec-note" class="eyebrow">How does your body feel today?</label><textarea id="rec-note" placeholder="Sore spots, sleep, stress…"></textarea><button class="btn full" data-act="save-recovery">Log recovery day</button></div>`;
@@ -1279,6 +1322,17 @@ function renderToday(){
   out += `</section></div>`;
   return out;
 }
+function liveStart(){ try{ const l = JSON.parse(localStorage.getItem("coach.live")||"null"); if(l && l.date===TODAY) return l.start; }catch(e){} return null; }
+function liveElapsed(){ const st = liveStart(); return st ? Math.max(0, Math.floor((Date.now()-st)/1000)) : 0; }
+function setLive(on){
+  ui.live = on;
+  try{
+    if(on){ const st = liveStart() || Date.now(); localStorage.setItem("coach.live", JSON.stringify({date:TODAY, start:st, on:true})); }
+    else { const l = JSON.parse(localStorage.getItem("coach.live")||"null"); if(l) localStorage.setItem("coach.live", JSON.stringify(Object.assign(l,{on:false}))); }
+  }catch(e){}
+}
+function endLive(){ ui.live = false; try{ localStorage.removeItem("coach.live"); }catch(e){} }
+setInterval(()=>{ const c = document.getElementById("live-clock"); if(c) c.textContent = fmtClock(liveElapsed()); }, 1000);
 
 function focusCard(plan){
   const C = plan.C, i = C.info, planned = C.next, off = C.mode!=="plan";
@@ -1566,6 +1620,7 @@ ${programView()}
 
 function render(){
   DER = computeAll(); DX = computeDistinctions(sessions);
+  document.body.classList.toggle("live", ui.tab==="today" && !!ui.live);
   renderHeader();
   const v = $("#view");
   const focusId = document.activeElement && document.activeElement.id;
@@ -1607,6 +1662,8 @@ document.addEventListener("click", async ev=>{
   else if(a==="min"){ ui.minutes=Number(t.dataset.v); ui.saved=null; persistUI(); render(); }
   else if(a==="walk"){ ui.walk=!ui.walk; persistUI(); render(); }
   else if(a==="focus"){ const v=t.dataset.v; if(v==="mix"){ const d=draft && draft.key && draft.key.startsWith(TODAY+"|mix") && Object.values(draft.entries).some(x=>x.sets.length); if(ui.focus!=="mix" || !d) newMix(); } else { try{ localStorage.setItem("coach.mix", JSON.stringify({date:dkeyNow(), seed:ui.mixSeed, on:false})); }catch(e){} } ui.focus = v===autoFocus() && v!=="mix" ? "auto" : v; ui.saved=null; ui.open=null; render(); }
+  else if(a==="live-start"){ setLive(true); keepAwake(); ui.saved=null; render(); window.scrollTo({top:0}); }
+  else if(a==="live-exit"){ setLive(false); render(); window.scrollTo({top:0}); }
   else if(a==="reshuffle"){ newMix(); ui.open=null; render(); }
   else if(a==="chart"){ ui.chartEx=t.dataset.v; render(); }
   else if(a==="all-dist"){ ui.allDist=!ui.allDist; render(); }
@@ -1680,7 +1737,7 @@ document.addEventListener("click", async ev=>{
     try{
       await store.putSession(s);
       draft=null; try{localStorage.removeItem("coach.draft");}catch(e){}
-      ui.saved = Object.assign(summ, {changes});
+      ui.saved = Object.assign(summ, {changes}); endLive();
       ui.open=null; ui.focus="auto"; try{localStorage.setItem("coach.mix",JSON.stringify({date:dkeyNow(),seed:ui.mixSeed,on:false}));}catch(e){} ui.rest=null; ui.walkT=null; render(); window.scrollTo({top:0,behavior:"smooth"});
     }catch(err){ t.disabled=false; t.textContent="Couldn't save. Check your connection and tap again."; }
   }
@@ -1688,7 +1745,7 @@ document.addEventListener("click", async ev=>{
     const note = ($("#rec-note")||{}).value||"";
     const s = Object.assign({id:TODAY+"-recovery-"+Date.now().toString(36), v:3, date:TODAY, type:"recovery", minutes:ui.minutes, energy:ui.energy, walk:ui.minutes, exercises:[], note, createdAt:new Date().toISOString()}, progFields(coachToday()));
     const summ = summarize(s);
-    try{ await store.putSession(s); ui.saved=Object.assign(summ,{changes:[]}); ui.focus="auto"; try{localStorage.setItem("coach.mix",JSON.stringify({date:dkeyNow(),seed:ui.mixSeed,on:false}));}catch(e){} ui.walkT=null; render(); }catch(e){ t.textContent="Couldn't save. Tap to try again."; }
+    try{ await store.putSession(s); ui.saved=Object.assign(summ,{changes:[]}); endLive(); ui.focus="auto"; try{localStorage.setItem("coach.mix",JSON.stringify({date:dkeyNow(),seed:ui.mixSeed,on:false}));}catch(e){} ui.walkT=null; render(); }catch(e){ t.textContent="Couldn't save. Tap to try again."; }
   }
 
   /* history */
