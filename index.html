@@ -82,10 +82,12 @@ p{margin:0}
 button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid var(--rose);outline-offset:2px}
 
-header.top{display:flex;flex-direction:column;gap:6px;padding-bottom:16px;border-bottom:1px solid var(--line)}
+header.top{position:relative;display:flex;flex-direction:column;gap:6px;padding-bottom:16px;border-bottom:1px solid var(--line)}
 .greet em{font-style:italic;color:var(--rose)}
 .affirm{font-family:var(--display);font-style:italic;font-weight:300;font-size:17px;line-height:1.35;color:var(--ink);max-width:40ch;min-height:2.7em;border:0;background:transparent;padding:0;text-align:left;transition:opacity .4s}
 .affirm.fade{opacity:0}
+.bouquet{position:absolute;right:-2px;bottom:12px;width:46px;height:86px;pointer-events:none}
+header.top .affirm,header.top .meta{padding-right:54px}
 .meta{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-top:4px}
 .sync{display:flex;align-items:center;gap:6px}
 .sync i{width:6px;height:6px;border-radius:50%;background:var(--good);display:inline-block}
@@ -188,7 +190,8 @@ body.live{padding-top:0;padding-bottom:40px}
 .pill.light{background:var(--apricot-soft)}
 .pill.recovery{background:var(--sage-soft)}
 .pill.mix{background:var(--gold-soft)}
-.coachnote{background:var(--butter-soft);border-left:2px solid var(--ochre);padding:12px 14px;font-size:14px}
+.coachnote{border-left:2px solid var(--gold);padding:2px 0 2px 12px;font-size:14px;color:var(--muted)}
+.coachnote b{color:var(--ink);font-weight:600}
 .coachnote b{font-weight:600}
 .list{display:flex;flex-direction:column;border:1px solid var(--line);background:var(--surface)}
 .ex{border-top:1px solid var(--hair)}
@@ -348,16 +351,6 @@ td.r,th.r{text-align:right}
 .hintc{fill:none;stroke:var(--ink);stroke-opacity:.3;stroke-dasharray:2 3}
 .reveal{animation:bloom 1.8s ease both}
 @keyframes bloom{from{opacity:0}to{opacity:1}}
-.arr{border:1px solid var(--line);background:var(--surface);display:grid;grid-template-columns:120px 1fr;gap:16px;padding:14px 16px;align-items:center}
-.arr svg{width:120px;height:auto;display:block}
-.arr .mood{font-family:var(--display);font-style:italic;font-weight:300;font-size:21px;line-height:1.15}
-.arr .bars{display:flex;gap:6px;margin:9px 0 7px}
-.arr .bars span{width:28px;height:4px;border:1px solid var(--ink)}
-.arr .bars span.on{background:var(--ink)}
-.arr .bars span.next{border-color:var(--gold);background:var(--gold-soft)}
-.arr .msg{font-size:13.5px}
-.arr .stems{font-size:12.5px;color:var(--muted);margin-top:4px}
-.arr .done{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--gold);font-weight:600}
 .goldline{width:56px;height:1px;background:var(--gold)}
 .diamond{width:7px;height:7px;background:var(--gold);transform:rotate(45deg);flex:none;display:inline-block}
 .newdist{display:flex;gap:9px;align-items:center;font-size:14px}
@@ -424,6 +417,7 @@ td.r,th.r{text-align:right}
     <h1 class="greet" id="greet">Hi Cassie</h1>
     <button class="affirm" id="affirm" aria-live="polite" title="Tap for another"></button>
     <div class="meta"><span class="sync" id="sync"><i></i><span>Loading…</span></span></div>
+    <svg class="bouquet" id="bouquet" viewBox="40 20 120 225" aria-hidden="true"></svg>
   </header>
   <div class="weekwrap">
     <div class="weekline"><span class="lbl"><span class="eyebrow" id="visit-label">This week</span><button class="linkbtn" id="week-today" data-act="week-today" hidden>This week</button></span><span class="visits" id="visits" aria-hidden="true"></span></div>
@@ -765,7 +759,7 @@ function fgreen(kind,x1,y1,cx,cy,x2,y2,n=6,sc=1){
 const VASE = `<path class="vs k" d="M86 150 L86 162 C 64 170, 58 196, 66 214 C 72 228, 128 228, 134 214 C 142 196, 136 170, 114 162 L114 150 Z"/><path d="M84 150 L116 150" ${K}/><path d="M68 196 C 90 191, 110 201, 132 196" fill="none" ${K} stroke-opacity=".3"/>`;
 const SLOTS = [ {x:90,y:72,r:30, st:[99,152,93,112,90,90]}, {x:134,y:98,r:21, st:[103,152,120,126,132,108]}, {x:60,y:108,r:18, st:[97,152,70,132,62,118]} ];
 /* n = stems earned (0–3), reveal = index of a stem to fade in */
-function arrangementSVG(moodIdx, n, {gold=false, charm=false, reveal=-1}={}){
+function arrangementSVG(moodIdx, n, {gold=false, charm=false, reveal=-1, hint:showHint=true}={}){
   const [, fl, gr] = MOODS[moodIdx];
   let back="", parts=["","",""], hint="";
   if(n>=3){
@@ -775,7 +769,7 @@ function arrangementSVG(moodIdx, n, {gold=false, charm=false, reveal=-1}={}){
   for(let i=0;i<3;i++){
     const s = SLOTS[i];
     if(i<n){ const g = fstem(...s.st) + (i===0?fleaf(95,128,-50,24):"") + fhead(fl[i][0], fl[i][1], s.x, s.y, s.r); parts[i] = i===reveal ? `<g class="reveal">${g}</g>` : g; }
-    else if(i===n) hint = `<circle class="hintc" cx="${s.x}" cy="${s.y}" r="${s.r*.8}"/>`;
+    else if(i===n && showHint) hint = `<circle class="hintc" cx="${s.x}" cy="${s.y}" r="${s.r*.8}"/>`;
   }
   const base = gold ? `<line x1="60" y1="236" x2="140" y2="236" stroke="var(--gold)" stroke-width="1.3"/>` : `<line x1="70" y1="236" x2="130" y2="236" stroke="var(--ink)" stroke-opacity=".2"/>`;
   const ch = charm ? `<path d="M117 162 Q 128 172 126 184" fill="none" stroke="var(--gold)" stroke-width="1"/><path d="M126 184 l5 7 l-5 7 l-5 -7 Z" fill="var(--gold)"/>` : "";
@@ -940,21 +934,6 @@ let DER = {W:{},H:{}};
 let DX = {events:[], best:{}, provenBest:{}, volume:0, plank:0, goals:[], wk:{weeks:[],map:{},curKey:"",runs:[],run:0}};
 
 function cap1(t){ return t.charAt(0).toUpperCase()+t.slice(1); }
-function weekCard(){
-  const W = DX.wk.map[DX.wk.curKey]; const n = W.n, mood = MOODS[W.mood];
-  const charm = DX.events.some(e=>e.week===W.key);
-  const reveal = ui.reveal && ui.reveal.week===W.key ? ui.reveal.i : -1;
-  const msg = n===0 ? "Your first stem is waiting. Each visit reveals a flower." : n===1 ? "One stem in. Two more visits complete the arrangement." : n===2 ? "Two stems in. One more visit completes it. Recovery counts." : "Three for three. Beautifully done.";
-  return `<section class="arr" aria-label="This week's arrangement">
-    <svg viewBox="0 0 200 250" role="img" aria-label="${esc(mood[0])}: ${n} of 3 stems">${arrangementSVG(W.mood, n, {gold:W.complete, charm, reveal})}</svg>
-    <div>
-      ${W.complete?`<p class="done">Week of ${fmtShort(W.key)} · Complete</p>`:`<p class="eyebrow">This week</p>`}
-      <p class="mood">${esc(mood[0])}</p>
-      <div class="bars" aria-hidden="true">${[0,1,2].map(i=>`<span class="${i<n?"on":i===n?"next":""}"></span>`).join("")}</div>
-      <p class="msg">${msg}</p>
-      ${n?`<p class="stems">${W.stems.map(x=>cap1(stemName(x).replace(/^an? /,""))).join(" · ")}</p>`:""}
-    </div></section>`;
-}
 /* what happened when a workout was saved: a new stem, distinctions, the line to show */
 function summarize(s){
   const before = DX, after = computeDistinctions([...sessions, s]);
@@ -1309,7 +1288,16 @@ function labelWeek(){
   $("#week-today").hidden = key===curKey;
   $("#visits").innerHTML = [0,1,2].map(n=>`<span class="${n<visits?"on":""}"></span>`).join("");
 }
+function renderBouquet(){
+  const el = $("#bouquet"); if(!el) return;
+  const W = DX.wk.map[DX.wk.curKey];
+  el.style.display = ui.tab==="today" && !ui.live ? "" : "none";
+  if(!W) return;
+  const reveal = ui.reveal && ui.reveal.week===W.key ? ui.reveal.i : -1;
+  el.innerHTML = arrangementSVG(W.mood, W.n, {gold:W.complete, charm:DX.events.some(e=>e.week===W.key), reveal, hint:false});
+}
 function renderHeader(){
+  renderBouquet();
   $("#today-date").textContent = today.toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric"});
   const h = new Date().getHours();
   $("#greet").innerHTML = `${h<12?"Good morning":h<17?"Good afternoon":"Good evening"}, <em>Cassie</em>`;
@@ -1350,9 +1338,9 @@ function renderToday(){
   const started = (draft && (Object.values(draft.entries||{}).some(d=>d.sets.length) || (draft.reopen && draft.reopen.date===TODAY))) || !!liveGet().date;
   if(savedToday || started){
     const next = savedToday && !started ? programState().next : programState(plan.C.mode==="bonus" ? null : plan.C.info.slot).next;
-    return `<div class="wrap" style="padding:0">${started ? todayPreview(plan, true) : savedTodayCard(savedToday)}${nextUpCard(next)}${weekCard()}</div>`;
+    return `<div class="wrap" style="padding:0">${started ? todayPreview(plan, true) : savedTodayCard(savedToday)}${nextUpCard(next)}</div>`;
   }
-  let out = `<div class="wrap" style="padding:0">${focusCard(plan)}${weekCard()}
+  let out = `<div class="wrap" style="padding:0">${focusCard(plan)}
   <section class="panel" aria-label="Check in">
     <div class="q">
       <div class="q-label"><span>How much is left in the tank after work?</span></div>
@@ -1414,7 +1402,7 @@ function todayPreview(plan, inProgress){
     </div>
     ${plan.type==="recovery"||inProgress?"":`<div class="coachnote"><b>${esc(e.label)} energy:</b> ${esc(e.note)} Rest ${e.rest>=120?"2 min":e.rest+" sec"} between sets. Aim for ${e.effort} effort.</div>`}
     <div class="preview">${rows}</div>
-    <button class="btn full start" data-act="live-start">${inProgress?(n?`Resume workout · ${n} of ${plan.all.length} started`:"Resume workout"):plan.type==="recovery"?"Start recovery":"Start workout"}</button>
+    <button class="btn ghost full start" data-act="live-start">${inProgress?(n?`Resume workout · ${n} of ${plan.all.length} started`:"Resume workout"):plan.type==="recovery"?"Start recovery":"Start workout"}</button>
   </section>`;
 }
 

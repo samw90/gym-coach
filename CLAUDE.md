@@ -42,6 +42,7 @@ A personal, phone-first workout coach for machine training at Lifetime (Plymouth
 - The weekly arrangement:
   - `MOODS`: 12 curated sets of three fall flowers and colors. `moodFor(weekKey)` picks one by hash without repeating the previous week.
   - Each visit (a distinct date, weeks run Monday to Sunday) reveals one stem. The third visit completes the week.
+  - On Today, only the stems earned this week show, small and unlabeled, in the header beside the affirmation (`renderBouquet`, `#bouquet`). There's no week card on the overview.
   - `arrangementSVG()` draws it from hand-built SVG flowers in `FDRAW`.
   - The monthly arrangement (`monthCard`/`monthSVG`, on Progress): every stem from the weeks whose Monday falls in this month (4–5 weeks, 3 stems each; weeks before her first workout don't count) in one large vase. Unearned stems are dashed outlines (`MONTH_POS` has 15 spots), completed weeks add their greens, and a full month gets a gold base.
 
