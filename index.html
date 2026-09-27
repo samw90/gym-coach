@@ -584,6 +584,7 @@ const dkey = d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 const parseKey = k=>{const [y,m,d]=k.split("-").map(Number); return new Date(y,m-1,d);};
 const fmtShort = k=>parseKey(k).toLocaleDateString(undefined,{month:"short",day:"numeric"});
 const fmtFull = k=>{const d=parseKey(k); return `${d.getMonth()+1}/${d.getDate()}/${d.getFullYear()}`;};
+const fmtDuration = sec=>{ const m = Math.max(1, Math.round(sec/60)); return m>=60 ? `${Math.floor(m/60)} hr ${m%60} min` : `${m} min`; };
 const fmtClock = s=>s>=3600 ? `${Math.floor(s/3600)}:${pad(Math.floor(s/60)%60)}:${pad(s%60)}` : `${Math.floor(s/60)}:${pad(s%60)}`;
 function weekStart(d){ const x=new Date(d.getFullYear(),d.getMonth(),d.getDate()); const off=(x.getDay()+6)%7; x.setDate(x.getDate()-off); return x; }
 const today = new Date();
@@ -927,14 +928,6 @@ function weekCard(){
       ${n?`<p class="stems">${W.stems.map(x=>cap1(stemName(x).replace(/^an? /,""))).join(" · ")}</p>`:""}
     </div></section>`;
 }
-function savedToast(){
-  if(!ui.saved) return "";
-  const {line, stem, dists, changes} = ui.saved;
-  return `<div class="toast" role="status"><p class="cheer">${esc(line)}</p>
-    ${stem?`<p>Today: ${esc(stem)}.</p>`:""}
-    ${(dists||[]).map(d=>`<div class="newdist"><span class="diamond"></span><span><b>${esc(d.name)}</b> · ${esc(d.text)}</span></div>`).join("")}
-    ${changes&&changes.length?`<p class="lbl" style="margin-top:4px">Next time</p><ul>${changes.map(c=>`<li>${esc(c)}</li>`).join("")}</ul>`:""}</div>`;
-}
 /* what happened when a workout was saved: a new stem, distinctions, the line to show */
 function summarize(s){
   const before = DX, after = computeDistinctions([...sessions, s]);
@@ -1266,12 +1259,12 @@ function renderToday(){
   if(plan.type!=="recovery") ensureDraft(plan);
   if(ui.live) return renderLive(plan);
   const savedToday = sessions.find(s=>s.date===TODAY);
-  const started = (draft && (Object.values(draft.entries||{}).some(d=>d.sets.length) || (draft.reopen && draft.reopen.date===TODAY))) || !!liveGet().start;
+  const started = (draft && (Object.values(draft.entries||{}).some(d=>d.sets.length) || (draft.reopen && draft.reopen.date===TODAY))) || !!liveGet().date;
   if(savedToday || started){
     const next = savedToday && !started ? programState().next : programState(plan.C.mode==="bonus" ? null : plan.C.info.slot).next;
-    return `<div class="wrap" style="padding:0">${savedToast()}${started ? todayPreview(plan, true) : savedTodayCard(savedToday)}${nextUpCard(next)}${weekCard()}</div>`;
+    return `<div class="wrap" style="padding:0">${started ? todayPreview(plan, true) : savedTodayCard(savedToday)}${nextUpCard(next)}${weekCard()}</div>`;
   }
-  let out = `<div class="wrap" style="padding:0">${savedToast()}${focusCard(plan)}${weekCard()}
+  let out = `<div class="wrap" style="padding:0">${focusCard(plan)}${weekCard()}
   <section class="panel" aria-label="Check in">
     <div class="q">
       <div class="q-label"><span>How much is left in the tank after work?</span></div>
@@ -1298,7 +1291,7 @@ function renderToday(){
 function savedTodayCard(s){
   const exs = (s.exercises||[]).filter(x=>(x.sets||[]).length);
   return `<section style="display:flex;flex-direction:column;gap:12px" aria-label="Today's workout">
-    <div class="plan-head"><div><p class="eyebrow">Today's workout · saved</p><h2>${esc(TYPE_NAME[s.type]||s.type)}</h2></div><span class="pill ${s.type}">${s.minutes||0} min</span></div>
+    <div class="plan-head"><div><p class="eyebrow">Today's workout · saved</p><h2>${esc(TYPE_NAME[s.type]||s.type)}</h2></div><span class="pill ${s.type}">${s.duration?fmtDuration(s.duration):`${s.minutes||0} min`}</span></div>
     ${s.type==="recovery"?"":`<div class="preview">${exs.map(x=>`<div class="pv done"><span>✓ ${esc(LIB[x.id]?LIB[x.id].name:x.id)}</span><span class="muted num">${esc(setsText(x.id, x.sets))}</span></div>`).join("")||`<div class="pv"><span class="muted">No sets logged</span></div>`}</div>`}
     <button class="btn ghost full" data-act="reopen" data-id="${esc(s.id)}">Reopen to finish</button>
   </section>`;
@@ -1316,7 +1309,7 @@ function reopenSession(s){
   }
   const plan = buildPlan(); draft.key = TODAY+"|"+plan.type+(plan.type==="mix"?"|"+ui.mixSeed:"");
   persistDraft();
-  livePut({on:true, start:Date.now(), rating:s.rating||0, walkDone:!!s.walk, recNote:s.type==="recovery"?(s.note||""):""});
+  livePut({on:true, acc:s.duration||0, since:Date.now(), rating:s.rating||0, walkDone:!!s.walk, recNote:s.type==="recovery"?(s.note||""):""});
 }
 function todayPreview(plan, inProgress){
   const e = plan.e, started = plan.type!=="recovery" && draft && Object.values(draft.entries).some(d=>d.sets.length);
@@ -1369,18 +1362,20 @@ function renderLive(plan){
   out += `</section></div>`;
   return out;
 }
-function liveStart(){ try{ const l = JSON.parse(localStorage.getItem("coach.live")||"null"); if(l && l.date===TODAY) return l.start; }catch(e){} return null; }
-function liveElapsed(){ const st = liveStart(); return st ? Math.max(0, Math.floor((Date.now()-st)/1000)) : 0; }
+/* Workout clock: runs only in workout mode. acc = seconds banked, since = when the current stretch began. */
+function liveElapsed(){
+  const l = liveGet(); if(!l.date) return 0;
+  const acc = l.acc!=null ? l.acc : 0, since = l.acc!=null ? l.since : l.start;
+  return Math.max(0, Math.floor(acc + (since ? (Date.now()-since)/1000 : 0)));
+}
 function setLive(on){
+  const elapsed = liveElapsed();
   ui.live = on;
-  try{
-    if(on){ const st = liveStart() || Date.now(); localStorage.setItem("coach.live", JSON.stringify({date:TODAY, start:st, on:true})); }
-    else { const l = JSON.parse(localStorage.getItem("coach.live")||"null"); if(l) localStorage.setItem("coach.live", JSON.stringify(Object.assign(l,{on:false}))); }
-  }catch(e){}
+  livePut(on ? {on:true, acc:elapsed, since:Date.now()} : {on:false, acc:elapsed, since:null});
 }
 function readNotes(){ const n=$("#sess-note"); if(n && draft) { draft.note=n.value; persistDraft(); } const r=$("#rec-note"); if(r) livePut({recNote:r.value}); }
 function liveGet(){ try{ const l = JSON.parse(localStorage.getItem("coach.live")||"null"); return l && l.date===TODAY ? l : {}; }catch(e){ return {}; } }
-function livePut(patch){ try{ localStorage.setItem("coach.live", JSON.stringify(Object.assign({date:TODAY, start:Date.now(), on:!!ui.live}, liveGet(), patch))); }catch(e){} }
+function livePut(patch){ try{ localStorage.setItem("coach.live", JSON.stringify(Object.assign({date:TODAY, on:!!ui.live, acc:0, since:null}, liveGet(), patch))); }catch(e){} }
 function starsRow(){
   const r = liveGet().rating||0;
   return `<p class="small muted" style="margin:-4px 0 0">Did you like this workout? Your rating tunes your program.</p><div class="stars" role="radiogroup" aria-label="Rate this workout">${[1,2,3,4,5].map(n=>`<button class="star${n<=r?" on":""}" data-act="rate" data-v="${n}" role="radio" aria-checked="${n===r}" aria-label="${n} star${n>1?"s":""}">★</button>`).join("")}</div>`;
@@ -1620,7 +1615,7 @@ function renderHistory(){
     out += `<div class="hist">
       <button class="hist-head" data-act="hist" data-id="${esc(s.id)}" aria-expanded="${open}">
         <span><b>${DAYS[parseKey(s.date).getDay()]}, ${fmtFull(s.date)}</b> <span class="pill ${s.type}" style="margin-left:6px">${TYPE_NAME[s.type]||esc(s.type)}</span></span>
-        <span class="small muted num">${s.minutes||0} min</span>
+        <span class="small muted num">${s.duration?fmtDuration(s.duration):`${s.minutes||0} min`}</span>
         <span class="small muted" style="grid-column:1/-1">${s.rating?`<span class="hist-stars" aria-label="${s.rating} of 5 stars">${"★".repeat(s.rating)}${"☆".repeat(5-s.rating)}</span> · `:""}${s.bonus?"Bonus day · ":s.week?`Week ${s.week} · ${esc(s.phase||"")} · `:""}${energyOf(s.energy).label} energy${exs.length?` · ${exs.length} exercises`:""}${s.note?` · “${esc(s.note)}”`:""}</span>
       </button>
       ${open?`<div class="hist-body">
@@ -1797,7 +1792,7 @@ document.addEventListener("click", async ev=>{
       return {id:it.id, target:d.target, planned:it.sets, range:{lo:rg.lo, hi:rg.hi}, sets:d.sets.map(s=>({w:Number(s.w)||0,reps:Number(s.reps)||0,grade:s.grade||"right"})), note:d.note||""};}).filter(x=>x.sets.length);
     for(const [xid,d] of Object.entries(draft.entries)) if(d.sets.length && !exercises.some(x=>x.id===xid)) exercises.push({id:xid, target:d.target, planned:d.planned, range:d.range, sets:d.sets, note:d.note||""});
     const noteEl = $("#sess-note");
-    const s = Object.assign({id:TODAY+"-"+plan.type+"-"+Date.now().toString(36), v:3, date:TODAY, type:plan.type, minutes:ui.minutes, energy:ui.energy, walk:plan.walk && liveGet().walkDone?plan.walk.min:0, rating:liveGet().rating||0, exercises, note:noteEl?noteEl.value:"", createdAt:new Date().toISOString()}, progFields(plan.C));
+    const s = Object.assign({id:TODAY+"-"+plan.type+"-"+Date.now().toString(36), v:3, date:TODAY, type:plan.type, minutes:ui.minutes, energy:ui.energy, walk:plan.walk && liveGet().walkDone?plan.walk.min:0, rating:liveGet().rating||0, duration:liveElapsed(), exercises, note:noteEl?noteEl.value:"", createdAt:new Date().toISOString()}, progFields(plan.C));
     if(draft.reopen){ s.id = draft.reopen.id; s.createdAt = draft.reopen.createdAt; }
     const after = computeAll([...sessions, s]).W;
     const changes = exercises.map(x=>{ const st=after[x.id]; return st&&st.last ? `${LIB[x.id].name}: ${nextLine(x.id, st)}` : null; }).filter(Boolean);
@@ -1811,7 +1806,7 @@ document.addEventListener("click", async ev=>{
   }
   else if(a==="save-recovery"){
     const note = ($("#rec-note")||{}).value||"";
-    const s = Object.assign({id:TODAY+"-recovery-"+Date.now().toString(36), v:3, date:TODAY, type:"recovery", minutes:ui.minutes, energy:ui.energy, walk:ui.minutes, rating:liveGet().rating||0, exercises:[], note, createdAt:new Date().toISOString()}, progFields(coachToday()));
+    const s = Object.assign({id:TODAY+"-recovery-"+Date.now().toString(36), v:3, date:TODAY, type:"recovery", minutes:ui.minutes, energy:ui.energy, walk:ui.minutes, rating:liveGet().rating||0, duration:liveElapsed(), exercises:[], note, createdAt:new Date().toISOString()}, progFields(coachToday()));
     if(draft && draft.reopen){ s.id = draft.reopen.id; s.createdAt = draft.reopen.createdAt; }
     const summ = summarize(s);
     try{ await store.putSession(s); if(draft && draft.reopen){ draft=null; try{ localStorage.removeItem("coach.draft"); }catch(e){} } try{ localStorage.removeItem("coach.reopened"); }catch(e){} ui.saved=Object.assign(summ,{changes:[]}); endLive(); ui.focus="auto"; try{localStorage.setItem("coach.mix",JSON.stringify({date:dkeyNow(),seed:ui.mixSeed,on:false}));}catch(e){} ui.walkT=null; render(); }catch(e){ t.textContent="Couldn't save. Tap to try again."; }
