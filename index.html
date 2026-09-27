@@ -1180,11 +1180,11 @@ function setText(id,t){ const el=document.getElementById(id); if(el && el.textCo
 const C_RING = 2*Math.PI*78;
 function setArc(id,frac){ const el=document.getElementById(id); if(el) el.setAttribute("stroke-dashoffset", String(C_RING*(1-frac))); }
 /* ---------- hold timer for timed moves (planks) ----------
-   Start → 5-second countdown to get into position → the timer runs, chimes at the goal.
-   Forearm plank: one hold, keeps counting past the goal until Stop.
+   Start → 3-second countdown to get into position → the timer runs and stops at the goal.
+   Forearm plank: one hold; Stop ends it early.
    Side plank: left side first; at the goal (or End early) it moves to the right side,
    and the weaker side is what gets logged. The time comes only from the timer. */
-const HOLD_READY = 5;
+const HOLD_READY = 3;
 const SIDE_NAME = ["","Left side","Right side"];
 function holdElapsed(h){ return Math.max(0, Math.floor((Date.now()-h.t0)/1000)); }
 function holdTimer(id, d){
@@ -1232,8 +1232,7 @@ function holdTick(){
   setText("hold-clock", fmtClock(el)); setArc("hold-arc", Math.min(1, el/goal));
   if(el>=goal && !h.chimed){
     h.chimed=true; chime();
-    if(LIB[h.id].perSide){ if(h.side===1) holdSwitch(h, el); else holdFinish(h, el); }
-    else setText("hold-lbl","Goal reached");
+    if(LIB[h.id].perSide && h.side===1) holdSwitch(h, goal); else holdFinish(h, goal);
   }
 }
 function beep(freq){
