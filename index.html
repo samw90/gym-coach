@@ -23,7 +23,7 @@
 <style>
 :root{
   --bg:#FBF8F2; --surface:#FFFEFA; --cream-2:#F3ECE1;
-  --blush:#F2E3E1; --blush-2:#E6CDCB; --mauve-soft:#E4D2D8;
+  --blush:#F2E3E1; --blush-2:#E6CDCB;
   --ink:#161213; --on-ink:#FFFEFA; --muted:#706466;
   --line:#161213; --hair:#E7DED2;
   --rose:#8C3A48; --good:#5E7A63; --warn:#A0703A;
@@ -40,7 +40,7 @@
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   color-scheme:dark;
   --bg:#151213; --surface:#1D191A; --cream-2:#29231F;
-  --blush:#33262A; --blush-2:#4A3439; --mauve-soft:#3E2C35;
+  --blush:#33262A; --blush-2:#4A3439;
   --ink:#F4EDE3; --on-ink:#151213; --muted:#B8AAA4;
   --line:#CDBFB3; --hair:#3A3230;
   --rose:#E0A0AE; --good:#A5C3AC; --warn:#DDB57B;
@@ -55,7 +55,7 @@
 :root[data-theme="dark"]{
   color-scheme:dark;
   --bg:#151213; --surface:#1D191A; --cream-2:#29231F;
-  --blush:#33262A; --blush-2:#4A3439; --mauve-soft:#3E2C35;
+  --blush:#33262A; --blush-2:#4A3439;
   --ink:#F4EDE3; --on-ink:#151213; --muted:#B8AAA4;
   --line:#CDBFB3; --hair:#3A3230;
   --rose:#E0A0AE; --good:#A5C3AC; --warn:#DDB57B;
@@ -194,7 +194,7 @@ body.live{padding-top:0;padding-bottom:40px}
 .ex{border-top:1px solid var(--hair)}
 .ex:first-child{border-top:0}
 .ex.done{background:var(--cafe-soft)}
-.ex.active{background:var(--mauve-soft);box-shadow:inset 3px 0 0 var(--rose)}
+.ex.active{background:var(--sage-soft);box-shadow:inset 3px 0 0 var(--sage)}
 .ex.active .stepper,.ex.active .logbtns button:not([aria-pressed="true"]){background:var(--surface)}
 .ex-main{display:grid;grid-template-columns:1fr auto;gap:3px 14px;padding:14px 16px;align-items:center;width:100%;text-align:left;border:0;background:transparent}
 .ex-name{font-weight:600;font-size:15.5px;display:flex;align-items:center;gap:9px}
@@ -1313,7 +1313,7 @@ function reopenSession(s){
   draft = {v:3, key:"", entries:{}, note:s.note||"", reopen};
   for(const x of (s.exercises||[])){
     const last = (x.sets||[]).slice(-1)[0] || {};
-    draft.entries[x.id] = {target:x.target||{w:last.w||0,reps:last.reps||10}, planned:x.planned||(x.sets||[]).length, range:x.range, sets:(x.sets||[]).map(y=>Object.assign({},y)), inW:last.w||0, inReps:(x.target&&x.target.reps)||last.reps||10, note:x.note||"", done:(x.sets||[]).length>=(x.planned||0), touched:true};
+    draft.entries[x.id] = {target:x.target||{w:last.w||0,reps:last.reps||10}, planned:x.planned||(x.sets||[]).length, range:x.range, sets:(x.sets||[]).map(y=>Object.assign({},y)), inW:last.w||0, inReps:last.reps||(x.target&&x.target.reps)||10, note:x.note||"", done:(x.sets||[]).length>=(x.planned||0), touched:true};
   }
   const plan = buildPlan(); draft.key = TODAY+"|"+plan.type+(plan.type==="mix"?"|"+ui.mixSeed:"");
   persistDraft();
@@ -1698,6 +1698,8 @@ function safeRender(){
 
 /* ---------- actions ---------- */
 function scrollToEx(id){ requestAnimationFrame(()=>{ const el=document.querySelector(`[data-act="open"][data-id="${id}"]`); if(el) el.scrollIntoView({behavior:"smooth",block:"start"}); }); }
+/* the next set starts from the last one you logged */
+function carryLast(d){ const l = d.sets[d.sets.length-1]; if(l){ d.inW = Number(l.w)||0; d.inReps = Number(l.reps)||0; } }
 function readInputs(id){
   const d = draft.entries[id];
   const wEl = document.getElementById("in-w-"+id), rEl = document.getElementById("in-r-"+id);
@@ -1749,7 +1751,7 @@ document.addEventListener("click", async ev=>{
     readInputs(id);
     const d = draft.entries[id];
     const set = {w:LIB[id].bw?0:Number(d.inW)||0, reps:Number(d.inReps)||0, grade:t.dataset.g};
-    d.sets.push(set); d.touched = true; d.pick = "right";
+    d.sets.push(set); d.touched = true; d.pick = "right"; carryLast(d);
     const n = d.sets.length, total = Number(t.dataset.total);
     const prev = lastSessionSets(id), p = prev && prev[n-1];
     let text;
@@ -1774,9 +1776,9 @@ document.addEventListener("click", async ev=>{
     if(w){ const v=parseFloat(w.value); if(!isNaN(v)) s.w=v; }
     if(r){ const v=parseInt(r.value,10); if(!isNaN(v)) s.reps=v; }
     if(ui.editSet.grade) s.grade=ui.editSet.grade;
-    ui.editSet=null; persistDraft(); render();
+    carryLast(d); ui.editSet=null; persistDraft(); render();
   }
-  else if(a==="es-del"){ const d=draft.entries[id]; d.sets.splice(ui.editSet.i,1); if(!d.sets.length) d.done=false; ui.editSet=null; persistDraft(); render(); }
+  else if(a==="es-del"){ const d=draft.entries[id]; d.sets.splice(ui.editSet.i,1); if(!d.sets.length) d.done=false; carryLast(d); ui.editSet=null; persistDraft(); render(); }
   else if(a==="finish-ex"){
     const d = draft.entries[id]; d.done = true; d.doneLine = rnd(DONE_LINES); ui.cheer=null; ui.rest=null; ui.editSet=null;
     const next = buildPlan().all.find(it=>!draft.entries[it.id].done);
