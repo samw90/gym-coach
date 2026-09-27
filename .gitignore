@@ -1,0 +1,6 @@
+# Personal workout data stays off GitHub. Bring it in with My plan → Import backup.
+data/
+*.json
+!manifest.webmanifest
+.DS_Store
+node_modules/
