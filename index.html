@@ -98,7 +98,11 @@ header.top{display:flex;flex-direction:column;gap:6px;padding-bottom:16px;border
 .visits{display:flex;gap:5px;align-items:center}
 .visits span{width:22px;height:5px;border:1px solid var(--line)}
 .visits span.on{background:var(--ink)}
-.week{display:grid;grid-template-columns:repeat(7,1fr);border:1px solid var(--line);background:var(--surface)}
+.week{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;scrollbar-width:none;border:1px solid var(--line);background:var(--surface)}
+.week::-webkit-scrollbar{display:none}
+.wk{flex:0 0 100%;display:grid;grid-template-columns:repeat(7,1fr);scroll-snap-align:start;scroll-snap-stop:always}
+.weekline .lbl{display:flex;align-items:baseline;gap:8px}
+.weekline .linkbtn{font-size:12px;padding:0;white-space:nowrap}
 .day{display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 0 9px;font-size:11.5px;color:var(--muted);border-left:1px solid var(--hair)}
 .day:first-child{border-left:0}
 .day.today{background:var(--cafe-soft);color:var(--ink)}
@@ -369,7 +373,7 @@ td.r,th.r{text-align:right}
     <div class="meta"><span class="sync" id="sync"><i></i><span>Loading…</span></span></div>
   </header>
   <div class="weekwrap">
-    <div class="weekline"><span class="eyebrow" id="visit-label">This week</span><span class="visits" id="visits" aria-hidden="true"></span></div>
+    <div class="weekline"><span class="lbl"><span class="eyebrow" id="visit-label">This week</span><button class="linkbtn" id="week-today" data-act="week-today" hidden>This week</button></span><span class="visits" id="visits" aria-hidden="true"></span></div>
     <div class="week" id="week" aria-label="This week"></div>
   </div>
   <main id="view"></main>
@@ -1036,6 +1040,52 @@ function startRest(id, secs){
 }
 
 /* ---------- render ---------- */
+/* Week strip: one page per Monday–Sunday week, swipeable. Opens on this week; goes back to the
+   first workout (at least 8 weeks) and 4 weeks ahead. The label follows the week in view. */
+const WEEKS_AHEAD = 4;
+let weekHtml = "", weekPages = [];
+function weekPagesFrom(){
+  const cur = weekStart(today);
+  const first = sessions.length ? weekStart(parseKey(sessions[sessions.length-1].date)) : cur;
+  const back = Math.min(104, Math.max(8, Math.round((cur-first)/(7*864e5))));
+  const out = [];
+  for(let w=-back; w<=WEEKS_AHEAD; w++){ const d=new Date(cur); d.setDate(cur.getDate()+7*w); out.push(d); }
+  return out;
+}
+function renderWeekStrip(){
+  const el = $("#week");
+  weekPages = weekPagesFrom();
+  const html = weekPages.map(ws=>{
+    let days="";
+    for(let i=0;i<7;i++){
+      const d = new Date(ws); d.setDate(ws.getDate()+i); const k=dkey(d);
+      const s = sessions.find(x=>x.date===k);
+      days += `<div class="day${k===TODAY?" today":""}" title="${s?esc(TYPE_NAME[s.type]||s.type):""}"><span>${DAYS[d.getDay()]}</span><b class="num">${d.getDate()}</b><span class="mark ${s?s.type:""}"></span></div>`;
+    }
+    return `<div class="wk" data-wk="${dkey(ws)}">${days}</div>`;
+  }).join("");
+  if(html!==weekHtml){
+    const keep = ui.weekView;
+    el.innerHTML = html; weekHtml = html;
+    const i = Math.max(0, weekPages.findIndex(d=>dkey(d)===(keep||dkey(weekStart(today)))));
+    el.scrollLeft = i*el.clientWidth;
+    requestAnimationFrame(()=>{ el.scrollLeft = i*el.clientWidth; });
+  }
+  labelWeek();
+}
+function labelWeek(){
+  const el = $("#week");
+  const i = el.clientWidth ? Math.round(el.scrollLeft/el.clientWidth) : weekPages.findIndex(d=>dkey(d)===dkey(weekStart(today)));
+  const ws = weekPages[Math.max(0,Math.min(weekPages.length-1,i))] || weekStart(today);
+  const key = dkey(ws), curKey = dkey(weekStart(today));
+  ui.weekView = key===curKey ? null : key;
+  const end = new Date(ws); end.setDate(ws.getDate()+6);
+  const visits = new Set(sessions.filter(s=>s.date>=key && s.date<=dkey(end)).map(s=>s.date)).size;
+  const range = ws.getMonth()===end.getMonth() ? `${fmtShort(key)}–${end.getDate()}` : `${fmtShort(key)}–${fmtShort(dkey(end))}`;
+  $("#visit-label").textContent = key===curKey ? `This week · ${Math.min(visits,3)} of 3 gym visits` : key<curKey ? `${range} · ${Math.min(visits,3)} of 3 visits` : range;
+  $("#week-today").hidden = key===curKey;
+  $("#visits").innerHTML = [0,1,2].map(n=>`<span class="${n<visits?"on":""}"></span>`).join("");
+}
 function renderHeader(){
   $("#today-date").textContent = today.toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric"});
   const h = new Date().getHours();
@@ -1046,16 +1096,7 @@ function renderHeader(){
   const stale = store.mode==="local" && sessions.length && backupDaysAgo()>=14;
   sy.className = "sync"+(pending?" unsaved":stale?" local":"");
   sy.querySelector("span").textContent = pending ? `${pending} logged set${pending>1?"s":""} not saved yet` : store.mode!=="local" ? "Loading…" : stale ? "Saved on this phone · time for a backup" : "Saved on this phone";
-  const visits = new Set(thisWeek().map(s=>s.date)).size;
-  $("#visit-label").textContent = `This week · ${Math.min(visits,3)} of 3 gym visits`;
-  $("#visits").innerHTML = [0,1,2].map(i=>`<span class="${i<visits?"on":""}"></span>`).join("");
-  const ws = weekStart(today); let html="";
-  for(let i=0;i<7;i++){
-    const d = new Date(ws); d.setDate(ws.getDate()+i); const k=dkey(d);
-    const s = sessions.find(x=>x.date===k);
-    html += `<div class="day${k===TODAY?" today":""}" title="${s?esc(TYPE_NAME[s.type]||s.type):""}"><span>${DAYS[d.getDay()]}</span><b class="num">${d.getDate()}</b><span class="mark ${s?s.type:""}"></span></div>`;
-  }
-  $("#week").innerHTML = html;
+  renderWeekStrip();
   document.querySelectorAll("nav.tabs button").forEach(b=>b.setAttribute("aria-current", b.dataset.tab===ui.tab?"page":"false"));
 }
 function rotateAffirm(){
@@ -1413,6 +1454,8 @@ function markBackup(){ try{ localStorage.setItem("coach.lastBackup", TODAY); }ca
 function exportData(){ return JSON.stringify({app:"cassie-gym-coach", version:3, exportedAt:new Date().toISOString(), manual:state.manual||{}, sessions}, null, 2); }
 
 document.addEventListener("pointerdown", unlockAudio, {once:true});
+$("#week").addEventListener("scroll", ()=>{ clearTimeout(labelWeek.t); labelWeek.t = setTimeout(labelWeek, 60); }, {passive:true});
+addEventListener("resize", ()=>{ const el=$("#week"), i=weekPages.findIndex(d=>dkey(d)===(ui.weekView||dkey(weekStart(today)))); if(i>=0) el.scrollLeft=i*el.clientWidth; });
 $("#affirm").addEventListener("click", rotateAffirm);
 
 document.addEventListener("click", async ev=>{
@@ -1511,6 +1554,7 @@ document.addEventListener("click", async ev=>{
   /* history */
   else if(a==="hist"){ ui.histOpen = ui.histOpen===id ? null : id; ui.confirmDel=null; render(); }
   else if(a==="del-ask"){ ui.confirmDel=id; render(); }
+  else if(a==="week-today"){ const el=$("#week"), i=weekPages.findIndex(d=>dkey(d)===dkey(weekStart(today))); el.scrollTo({left:i*el.clientWidth, behavior:"smooth"}); }
   else if(a==="del-no"){ ui.confirmDel=null; render(); }
   else if(a==="del-yes"){ try{ await store.deleteSession(id); ui.confirmDel=null; ui.histOpen=null; render(); }catch(e){ t.textContent="Couldn't delete. Try again."; } }
 
