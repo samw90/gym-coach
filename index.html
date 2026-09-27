@@ -1379,7 +1379,7 @@ function reopenSession(s){
   draft = {v:3, key:"", entries:{}, note:s.note||"", reopen};
   for(const x of (s.exercises||[])){
     const last = (x.sets||[]).slice(-1)[0] || {};
-    draft.entries[x.id] = {target:x.target||{w:last.w||0,reps:last.reps||10}, planned:x.planned||(x.sets||[]).length, range:x.range, sets:(x.sets||[]).map(y=>Object.assign({},y)), inW:last.w||0, inReps:last.reps||(x.target&&x.target.reps)||10, note:x.note||"", done:(x.sets||[]).length>=(x.planned||0), touched:true};
+    draft.entries[x.id] = {target:x.target||{w:last.w||0,reps:last.reps||10}, planned:x.planned||(x.sets||[]).length, range:x.range, reopened:true, sets:(x.sets||[]).map(y=>Object.assign({},y)), inW:last.w||0, inReps:last.reps||(x.target&&x.target.reps)||10, note:x.note||"", done:(x.sets||[]).length>=(x.planned||0), touched:true};
   }
   const plan = buildPlan(); draft.key = TODAY+"|"+plan.type+(plan.type==="mix"?"|"+ui.mixSeed:"");
   persistDraft();
@@ -1868,9 +1868,10 @@ document.addEventListener("click", async ev=>{
   else if(a==="save"){
     const plan = buildPlan(); t.disabled=true;
     const exercises = plan.all.map(it=>{const d=draft.entries[it.id];
-      const rg = repRange(it.id, plan.e);
-      return {id:it.id, target:d.target, planned:it.sets, range:{lo:rg.lo, hi:rg.hi}, sets:d.sets.map(s=>({w:Number(s.w)||0,reps:Number(s.reps)||0,grade:s.grade||"right"})), note:d.note||""};}).filter(x=>x.sets.length);
-    for(const [xid,d] of Object.entries(draft.entries)) if(d.sets.length && !exercises.some(x=>x.id===xid)) exercises.push({id:xid, target:d.target, planned:d.planned, range:d.range, sets:d.sets, note:d.note||""});
+      // a reopened exercise keeps the range it was logged with (none, for pre-program workouts)
+      const rg = d.reopened ? d.range : repRange(it.id, plan.e);
+      return Object.assign({id:it.id, target:d.target, planned:d.reopened ? d.planned : it.sets}, rg ? {range:{lo:rg.lo, hi:rg.hi}} : {}, {sets:d.sets.map(s=>({w:Number(s.w)||0,reps:Number(s.reps)||0,grade:s.grade||"right"})), note:d.note||""});}).filter(x=>x.sets.length);
+    for(const [xid,d] of Object.entries(draft.entries)) if(d.sets.length && !exercises.some(x=>x.id===xid)) exercises.push(Object.assign({id:xid, target:d.target, planned:d.planned}, d.range ? {range:d.range} : {}, {sets:d.sets, note:d.note||""}));
     const noteEl = $("#sess-note");
     const s = Object.assign({id:TODAY+"-"+plan.type+"-"+Date.now().toString(36), v:3, date:TODAY, type:plan.type, minutes:ui.minutes, energy:ui.energy, walk:plan.walk && liveGet().walkDone?plan.walk.min:0, rating:liveGet().rating||0, duration:liveElapsed(), exercises, note:noteEl?noteEl.value:"", createdAt:new Date().toISOString()}, progFields(plan.C));
     if(draft.reopen){ s.id = draft.reopen.id; s.createdAt = draft.reopen.createdAt; }
