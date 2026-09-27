@@ -462,38 +462,35 @@ const LIB = {
 };
 /* Alternatives for swapping: same muscles, different equipment */
 Object.assign(LIB, {
-  hacksquat:{name:"Hack Squat Machine",step:10,start:40,cue:"Shoulders under the pads, feet mid-platform. Lower until thighs are about parallel, drive up through your heels."},
-  smithsquat:{name:"Smith Machine Squat",step:10,start:30,cue:"Bar across your upper back, feet slightly in front of you. Sit back and down until thighs are about parallel, then stand."},
-  smithsplit:{name:"Smith Machine Split Squat",step:10,start:20,perSide:true,sideWord:" each leg",cue:"Bar across your upper back, one foot forward, one back. Lower straight down until the front thigh is parallel, press up. Log reps per leg."},
+  sledpress:{name:"45° Plate-Loaded Leg Press",step:10,start:50,cue:"Back flat on the pad, feet shoulder-width mid-platform. Lower until knees reach about 90°, press through your heels without locking your knees."},
+  singlelegpress:{name:"Single-Leg Press",step:10,start:30,perSide:true,sideWord:" each leg",cue:"Same leg press, one foot centered on the platform. Lower with control, press through the heel. Log reps per leg."},
+  singleext:{name:"Single-Leg Extension",step:5,start:20,perSide:true,sideWord:" each leg",cue:"Leg extension machine, one leg at a time. Lift to straight, pause, lower slowly. Log reps per leg."},
   lyingcurl:{name:"Lying Leg Curl",step:5,start:30,cue:"Pad just above your heels, hips pressed down. Curl up, lower for 3 counts."},
   standcurl:{name:"Standing Leg Curl Machine",step:5,start:15,perSide:true,sideWord:" each leg",cue:"Pad just above the heel, hips square to the machine. Curl up, lower slowly. Log reps per leg."},
-  cablekick:{name:"Cable Glute Kickback",step:5,start:10,perSide:true,sideWord:" each leg",cue:"Ankle strap on, hands on the frame, hips square. Press the leg straight back and squeeze. Log reps per leg."},
-  pullthrough:{name:"Cable Pull-Through",step:5,start:20,cue:"Rope between your legs, facing away from the low cable. Hinge your hips back, then squeeze your glutes to stand tall."},
-  cableabd:{name:"Cable Hip Abduction",step:5,start:10,perSide:true,sideWord:" each leg",cue:"Ankle strap on the outside leg, stand tall holding the frame. Sweep the leg out to the side, return slowly. Log reps per leg."},
-  cableadd:{name:"Cable Hip Adduction",step:5,start:10,perSide:true,sideWord:" each leg",cue:"Ankle strap on the inside leg, stand tall holding the frame. Sweep the leg across in front of you, return slowly. Log reps per leg."},
-  cablerow:{name:"Cable Row",step:5,start:40,cue:"Sit tall, slight bend in the knees. Pull the handle to your belly, squeeze your shoulder blades, return slowly."},
+  multihipext:{name:"Multi-Hip Machine · Glute Extension",step:5,start:30,perSide:true,sideWord:" each leg",cue:"Pad behind the knee, stand tall holding the handles. Press the leg back and squeeze your glute, return slowly. Log reps per leg."},
+  multihipabd:{name:"Multi-Hip Machine · Abduction",step:5,start:25,perSide:true,sideWord:" each leg",cue:"Pad on the outside of the knee. Sweep the leg out to the side, return slowly. Log reps per leg."},
+  multihipadd:{name:"Multi-Hip Machine · Adduction",step:5,start:25,perSide:true,sideWord:" each leg",cue:"Pad on the inside of the knee. Sweep the leg across in front of you, return slowly. Log reps per leg."},
   isorow:{name:"Iso-Lateral Row Machine",step:5,start:30,cue:"Chest on the pad. Pull both handles back, elbows close to your sides, squeeze, return slowly."},
+  lowrow:{name:"Low Row Machine",step:5,start:30,cue:"Chest on the pad, handles low. Pull toward your hips, squeeze your shoulder blades, return slowly."},
   pecfly:{name:"Pec Fly Machine",step:5,start:30,cue:"Handles at chest height, slight bend in the elbows. Bring your hands together, pause, open slowly."},
   inclinepress:{name:"Incline Chest Press Machine",step:5,start:25,cue:"Handles at upper-chest height. Press up and out without locking your elbows, 3 counts back."},
-  straightpull:{name:"Cable Straight-Arm Pulldown",step:5,start:20,cue:"Arms long, slight hinge at the hips. Sweep the bar down to your thighs, keeping arms straight, return slowly."},
-  armpulldown:{name:"Single-Arm Cable Pulldown",step:5,start:15,perSide:true,sideWord:" each arm",cue:"Kneel facing the cable, handle overhead. Pull your elbow down to your side, squeeze, return slowly. Log reps per arm."},
+  isopulldown:{name:"Iso-Lateral Pulldown Machine",step:5,start:40,cue:"Thighs under the pads. Pull the handles down toward your shoulders, elbows to your sides, return slowly."},
+  pullover:{name:"Pullover Machine",step:5,start:30,cue:"Elbows on the pads, arms overhead. Sweep your elbows down toward your sides, return slowly."},
   lateralmachine:{name:"Lateral Raise Machine",step:5,start:15,cue:"Pads just above your elbows. Raise your arms out to shoulder height, lower for 3 counts."},
-  cablelateral:{name:"Cable Lateral Raise",step:5,start:5,perSide:true,sideWord:" each arm",cue:"Low cable, handle in the far hand. Raise the arm out to shoulder height, lower slowly. Log reps per arm."},
-  facepull:{name:"Cable Face Pull",step:5,start:15,cue:"Rope at face height. Pull toward your eyes, elbows high, squeeze your upper back."},
-  cablecurl:{name:"Cable Biceps Curl",step:5,start:15,cue:"Elbows pinned to your sides. Curl the bar up, lower slowly."},
-  ropecurl:{name:"Cable Hammer Curl",step:5,start:15,cue:"Rope on the low cable, palms facing each other. Curl up with elbows at your sides, lower slowly."},
-  pushdown:{name:"Cable Triceps Pushdown",step:5,start:20,cue:"Elbows tucked at your sides. Press down to straight, control the return."},
-  cableoh:{name:"Cable Overhead Triceps Extension",step:5,start:15,cue:"Rope on the low cable, facing away. Elbows by your ears, extend overhead, lower slowly."},
+  isoshoulder:{name:"Iso-Lateral Shoulder Press",step:5,start:20,cue:"Handles at shoulder height. Press up without shrugging, lower with control."},
+  highrow:{name:"High Row Machine",step:5,start:30,cue:"Chest against the pad, handles high. Pull down and back, squeezing between your shoulder blades."},
+  platecurl:{name:"Plate-Loaded Biceps Curl",step:5,start:20,cue:"Upper arms flat on the pad. Curl up, lower for 3 counts."},
+  ohtriceps:{name:"Overhead Triceps Extension Machine",step:5,start:25,cue:"Elbows on the pad, handles behind your head. Extend overhead, return slowly."},
   sidebend:{name:"Dumbbell Side Bend",db:true,start:15,perSide:true,cue:"Standing tall, dumbbell in one hand. Bend sideways toward it, then use your obliques to come back up. Log reps per side."},
   birddog:{name:"Bird Dog",bw:true,perSide:true,cue:"On hands and knees, back flat. Reach one arm and the opposite leg long, pause, return. Log reps per side."}
 });
 /* Each group rotates through moves for the same muscles. The first id is the one in the program. */
 const SWAP_GROUPS = [
-  // machines and cable stations only
-  ["legpress","hacksquat","smithsquat"], ["legext","smithsplit"], ["legcurl","lyingcurl","standcurl"],
-  ["kickback","cablekick","pullthrough"], ["abductor","cableabd"], ["adductor","cableadd"],
-  ["row","cablerow","isorow"], ["chestpress","pecfly","inclinepress"], ["pulldown","straightpull","armpulldown"],
-  ["shoulder","lateralmachine","cablelateral"], ["revfly","facepull"], ["biceps","cablecurl","ropecurl"], ["triceps","pushdown","cableoh"],
+  // selectorized and plate-loaded machines only: no cables, Smith machines or racks
+  ["legpress","sledpress","singlelegpress"], ["legext","singleext"], ["legcurl","lyingcurl","standcurl"],
+  ["kickback","multihipext"], ["abductor","multihipabd"], ["adductor","multihipadd"],
+  ["row","isorow","lowrow"], ["chestpress","pecfly","inclinepress"], ["pulldown","isopulldown","pullover"],
+  ["shoulder","lateralmachine","isoshoulder"], ["revfly","highrow"], ["biceps","platecurl"], ["triceps","ohtriceps"],
   // core on the mat
   ["dbcrunch","revcrunch"], ["deadbug","plank","birddog"], ["twist","sidebend","sideplank"]
 ];
