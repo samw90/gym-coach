@@ -317,9 +317,22 @@ tr:last-child td{border-bottom:0}
 td.r,th.r{text-align:right}
 .hist{border:1px solid var(--line);background:var(--surface)}
 .hist-head{display:grid;grid-template-columns:1fr auto;gap:4px 12px;padding:13px 16px;width:100%;text-align:left;border:0;background:transparent;align-items:center}
+.he{display:flex;flex-direction:column;gap:12px}
+.he-ex{display:flex;flex-direction:column;gap:6px;padding-bottom:12px;border-bottom:1px solid var(--hair)}
+.he-set{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.he-n{width:16px;font-size:12px;color:var(--muted)}
+.he-set input{width:58px;padding:6px 8px;text-align:center}
+.he-set select{padding:6px;font:inherit;font-size:13px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:2px}
+.he-set{flex-wrap:nowrap}
+.he-set select{flex:1;min-width:0}
+.he-x{border:0;background:transparent;color:var(--muted);font-size:14px;padding:6px 4px;line-height:1}
+.he-ex > .linkbtn{align-self:flex-start;padding:0;font-size:13px}
 .hist-body{border-top:1px dashed var(--hair);padding:12px 16px 16px;display:flex;flex-direction:column;gap:10px}
 .hist-ex{font-size:14px}
 .hist-ex b{font-weight:600}
+.finish .btn.ghost{background:var(--surface)}
+.finish .btn.ghost:hover:not(:disabled),.finish .btn.ghost:active:not(:disabled){background:var(--cream-2)}
+.confirm.soft{border-color:var(--line);background:var(--cream-2)}
 .confirm{display:flex;gap:10px;flex-wrap:wrap;align-items:center;border:1px dashed var(--merlot);padding:12px;background:var(--merlot-soft)}
 .empty{border:1px dashed var(--line);padding:22px;text-align:center;color:var(--muted);background:var(--surface)}
 .wtable input{width:72px}
@@ -1432,7 +1445,9 @@ function renderLive(plan){
       <label class="eyebrow" for="sess-note" style="margin-top:6px">Notes</label>
       <textarea id="sess-note" placeholder="Anything to remember next week? e.g. leg press seat on 6, knees felt great">${esc(draft.note||"")}</textarea>
       <button class="btn ghost full" data-act="save" ${doneN?"":"disabled"}>Save workout${doneN?` · ${doneN} of ${plan.all.length} exercises`:""}</button>
-      <button class="btn full" data-act="finish-workout" ${allDone?"":"disabled"}>Finish workout</button>
+      ${ui.confirmFinish && allDone
+        ? `<div class="confirm soft"><span class="small"><b>Finish this workout?</b> It'll be marked complete for today. You can still edit it from History.</span><button class="btn sm" data-act="finish-yes">Yes, finish</button><button class="btn ghost sm" data-act="finish-no">Not yet</button></div>`
+        : `<button class="btn ghost full" data-act="finish-workout" ${allDone?"":"disabled"}>Finish workout</button>`}
       <p class="muted small" style="text-align:center">${!doneN ? "Tap an exercise to start your first set." : allDone ? "Everything's done. Finish to close out today." : "Save to come back to it later. Finish unlocks once every exercise is done."}</p>
     </div>`;
   }
@@ -1691,17 +1706,52 @@ function renderHistory(){
         <span class="small muted num">${s.duration?fmtDuration(s.duration):`${s.minutes||0} min`}</span>
         <span class="small muted" style="grid-column:1/-1">${s.rating?`<span class="hist-stars" aria-label="${s.rating} of 5 stars">${"★".repeat(s.rating)}${"☆".repeat(5-s.rating)}</span> · `:""}${s.bonus?"Bonus day · ":s.week?`Week ${s.week} · ${esc(s.phase||"")} · `:""}${energyOf(s.energy).label} energy${exs.length?` · ${exs.length} exercises`:""}${s.note?` · “${esc(s.note)}”`:""}</span>
       </button>
-      ${open?`<div class="hist-body">
+      ${open && ui.histEdit && ui.histEdit.id===s.id ? `<div class="hist-body">${histEditor(ui.histEdit.s)}</div>` : open?`<div class="hist-body">
         ${exs.length?exs.map(x=>`<div class="hist-ex"><b>${esc(LIB[x.id]?.name||x.id)}</b><br><span class="num">${(x.sets||[]).map(y=>`${LIB[x.id]?.bw?"":y.w+"×"}${y.reps}${y.grade&&y.grade!=="right"?` (${GRADE[y.grade].toLowerCase()})`:""}`).join(" · ")}</span>${x.note?`<br><span class="small muted">“${esc(x.note)}”</span>`:""}</div>`).join(""):`<p class="small muted">${s.type==="recovery"?"Recovery walk and stretching.":"No sets logged."}</p>`}
         ${ui.confirmDel===s.id
           ? `<div class="confirm"><span class="small"><b>Delete this workout?</b> This can't be undone, but an export keeps a copy.</span><button class="btn danger sm" data-act="del-yes" data-id="${esc(s.id)}">Delete</button><button class="btn ghost sm" data-act="del-no">Keep it</button></div>`
-          : `<div><button class="btn ghost sm" data-act="del-ask" data-id="${esc(s.id)}">Delete workout</button></div>`}
+          : `<div class="btnrow" style="justify-content:flex-start"><button class="btn ghost sm" data-act="he-open" data-id="${esc(s.id)}">Edit workout</button><button class="btn ghost sm" data-act="del-ask" data-id="${esc(s.id)}">Delete workout</button></div>`}
       </div>`:""}
     </div>`;
   }
   return out+"</div>";
 }
 
+/* History editor: fix weights, reps, feel, sets, notes and rating on any saved workout.
+   Saving replaces it in place (same id and date), and the numbers recalculate. */
+function histEditor(s){
+  const r = s.rating||0;
+  const exs = (s.exercises||[]).map((x,i)=>{
+    const L = LIB[x.id]||{name:x.id}, u = L.timed?"sec":"reps";
+    const sets = (x.sets||[]).map((y,j)=>`<div class="he-set"><span class="he-n">${j+1}</span>
+        ${L.bw?"":`<input id="he-w-${i}-${j}" type="text" inputmode="decimal" value="${esc(y.w)}" aria-label="Set ${j+1} weight"><span class="muted small">lb ×</span>`}
+        <input id="he-r-${i}-${j}" type="text" inputmode="numeric" value="${esc(y.reps)}" aria-label="Set ${j+1} ${u}"><span class="muted small">${u}</span>
+        <select id="he-g-${i}-${j}" aria-label="Set ${j+1} feel">${["easy","right","hard"].map(g=>`<option value="${g}"${(y.grade||"right")===g?" selected":""}>${GRADE[g]}</option>`).join("")}</select>
+        <button class="he-x" data-act="he-del" data-i="${i}" data-j="${j}" aria-label="Remove set ${j+1}">✕</button></div>`).join("");
+    return `<div class="he-ex"><b>${esc(L.name)}</b>${sets}
+      <button class="linkbtn" data-act="he-add" data-i="${i}">+ Add a set</button>
+      <input id="he-x-${i}" type="text" placeholder="Note" value="${esc(x.note||"")}" aria-label="${esc(L.name)} note"></div>`;
+  }).join("");
+  return `<div class="he">${exs}
+    <span class="eyebrow">Rating</span>
+    <div class="stars">${[1,2,3,4,5].map(n=>`<button class="star${n<=r?" on":""}" data-act="he-rate" data-v="${n}" aria-label="${n} star${n>1?"s":""}">★</button>`).join("")}</div>
+    <textarea id="he-note" placeholder="Notes" aria-label="Workout notes">${esc(s.note||"")}</textarea>
+    <div class="btnrow" style="justify-content:flex-start"><button class="btn sm" data-act="he-save">Save changes</button><button class="btn ghost sm" data-act="he-cancel">Cancel</button></div>
+  </div>`;
+}
+function heRead(){
+  const s = ui.histEdit && ui.histEdit.s; if(!s) return;
+  (s.exercises||[]).forEach((x,i)=>{
+    (x.sets||[]).forEach((y,j)=>{
+      const w = document.getElementById(`he-w-${i}-${j}`), r = document.getElementById(`he-r-${i}-${j}`), g = document.getElementById(`he-g-${i}-${j}`);
+      if(w){ const v = parseFloat(w.value); if(!isNaN(v)) y.w = v; }
+      if(r){ const v = parseInt(r.value,10); if(!isNaN(v)) y.reps = v; }
+      if(g) y.grade = g.value;
+    });
+    const n = document.getElementById(`he-x-${i}`); if(n) x.note = n.value;
+  });
+  const n = document.getElementById("he-note"); if(n) s.note = n.value;
+}
 function programView(){
   const P = programState(), cur = P.next, blockStart = (cur.block-1)*3*BLOCK.length;
   const rows = BLOCK.map((w,k)=>{
@@ -1868,7 +1918,10 @@ document.addEventListener("click", async ev=>{
   /* treadmill timer */
 
   /* save */
-  else if(a==="save" || a==="finish-workout"){
+  else if(a==="finish-workout"){ readNotes(); ui.confirmFinish = true; render(); }
+  else if(a==="finish-no"){ ui.confirmFinish = false; render(); }
+  else if(a==="save" || a==="finish-yes"){
+    ui.confirmFinish = false;
     const plan = buildPlan(); t.disabled=true;
     const exercises = plan.all.map(it=>{const d=draft.entries[it.id];
       // a reopened exercise keeps the range it was logged with (none, for pre-program workouts)
@@ -1876,7 +1929,7 @@ document.addEventListener("click", async ev=>{
       return Object.assign({id:it.id, target:d.target, planned:d.reopened ? d.planned : it.sets}, rg ? {range:{lo:rg.lo, hi:rg.hi}} : {}, {sets:d.sets.map(s=>({w:Number(s.w)||0,reps:Number(s.reps)||0,grade:s.grade||"right"})), note:d.note||""});}).filter(x=>x.sets.length);
     for(const [xid,d] of Object.entries(draft.entries)) if(d.sets.length && !exercises.some(x=>x.id===xid)) exercises.push(Object.assign({id:xid, target:d.target, planned:d.planned}, d.range ? {range:d.range} : {}, {sets:d.sets, note:d.note||""}));
     const noteEl = $("#sess-note");
-    const s = Object.assign({id:TODAY+"-"+plan.type+"-"+Date.now().toString(36), v:3, date:TODAY, type:plan.type, minutes:ui.minutes, energy:ui.energy, walk:plan.walk && liveGet().walkDone?plan.walk.min:0, rating:liveGet().rating||0, duration:liveElapsed(), finished:a==="finish-workout", exercises, note:noteEl?noteEl.value:"", createdAt:new Date().toISOString()}, progFields(plan.C));
+    const s = Object.assign({id:TODAY+"-"+plan.type+"-"+Date.now().toString(36), v:3, date:TODAY, type:plan.type, minutes:ui.minutes, energy:ui.energy, walk:plan.walk && liveGet().walkDone?plan.walk.min:0, rating:liveGet().rating||0, duration:liveElapsed(), finished:a==="finish-yes", exercises, note:noteEl?noteEl.value:"", createdAt:new Date().toISOString()}, progFields(plan.C));
     if(draft.reopen){ s.id = draft.reopen.id; s.createdAt = draft.reopen.createdAt; }
     const after = computeAll([...sessions, s]).W;
     const changes = exercises.map(x=>{ const st=after[x.id]; return st&&st.last ? `${LIB[x.id].name}: ${nextLine(x.id, st)}` : null; }).filter(Boolean);
@@ -1897,7 +1950,17 @@ document.addEventListener("click", async ev=>{
   }
 
   /* history */
-  else if(a==="hist"){ ui.histOpen = ui.histOpen===id ? null : id; ui.confirmDel=null; render(); }
+  else if(a==="hist"){ ui.histOpen = ui.histOpen===id ? null : id; ui.confirmDel=null; ui.histEdit=null; render(); }
+  else if(a==="he-open"){ const s = sessions.find(x=>x.id===id); if(s){ ui.histEdit = {id, s:structuredClone(s)}; ui.confirmDel = null; render(); } }
+  else if(a==="he-cancel"){ ui.histEdit = null; render(); }
+  else if(a==="he-add"){ heRead(); const x = ui.histEdit.s.exercises[Number(t.dataset.i)]; const l = (x.sets||[]).slice(-1)[0] || {w:0, reps:(x.target&&x.target.reps)||10}; (x.sets=x.sets||[]).push({w:l.w, reps:l.reps, grade:"right"}); render(); }
+  else if(a==="he-del"){ heRead(); ui.histEdit.s.exercises[Number(t.dataset.i)].sets.splice(Number(t.dataset.j),1); render(); }
+  else if(a==="he-rate"){ heRead(); const v = Number(t.dataset.v); ui.histEdit.s.rating = ui.histEdit.s.rating===v ? 0 : v; render(); }
+  else if(a==="he-save"){
+    heRead(); const s = ui.histEdit.s;
+    s.exercises = (s.exercises||[]).map(x=>Object.assign(x, {sets:(x.sets||[]).filter(y=>Number(y.reps)>0)})).filter(x=>x.sets.length);
+    try{ await store.putSession(s); ui.histEdit = null; render(); }catch(e){ t.textContent = "Couldn't save. Try again."; }
+  }
   else if(a==="del-ask"){ ui.confirmDel=id; render(); }
   else if(a==="week-today"){ const el=$("#week"), i=weekPages.findIndex(d=>dkey(d)===dkey(weekStart(today))); el.scrollTo({left:i*el.clientWidth, behavior:"smooth"}); }
   else if(a==="del-no"){ ui.confirmDel=null; render(); }
