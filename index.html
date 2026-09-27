@@ -272,6 +272,7 @@ textarea{width:100%;min-height:66px;resize:vertical}
 .btn.sm{padding:8px 14px;font-size:14px}
 .btn:disabled{opacity:.45;cursor:default}
 .btn:disabled:hover{background:var(--ink);border-color:var(--ink)}
+.btn.ghost:disabled:hover{background:transparent}
 .linkbtn{border:0;background:transparent;color:var(--muted);text-decoration:underline;text-underline-offset:3px;font-size:13px;padding:4px}
 .walk{border:1px solid var(--line);background:var(--butter-soft);display:flex;gap:14px;align-items:center;padding:13px 16px;width:100%;text-align:left;color:var(--ink);font:inherit}
 .walk .check{width:22px;height:22px;font-size:12px}
@@ -1365,9 +1366,9 @@ function renderToday(){
 function savedTodayCard(s){
   const exs = (s.exercises||[]).filter(x=>(x.sets||[]).length);
   return `<section style="display:flex;flex-direction:column;gap:12px" aria-label="Today's workout">
-    <div class="plan-head"><div><p class="eyebrow">Today's workout · saved</p><h2>${esc(TYPE_NAME[s.type]||s.type)}</h2></div><span class="pill ${s.type}">${s.duration?fmtDuration(s.duration):`${s.minutes||0} min`}</span></div>
+    <div class="plan-head"><div><p class="eyebrow">Today's workout · ${s.finished===false?"saved":"complete"}</p><h2>${esc(TYPE_NAME[s.type]||s.type)}</h2></div><span class="pill ${s.type}">${s.duration?fmtDuration(s.duration):`${s.minutes||0} min`}</span></div>
     ${s.type==="recovery"?"":`<div class="preview">${exs.map(x=>`<div class="pv done"><span>✓ ${esc(LIB[x.id]?LIB[x.id].name:x.id)}</span><span class="muted num">${esc(setsText(x.id, x.sets))}</span></div>`).join("")||`<div class="pv"><span class="muted">No sets logged</span></div>`}</div>`}
-    <button class="btn ghost full" data-act="reopen" data-id="${esc(s.id)}">Reopen to finish</button>
+    ${s.finished===false ? `<button class="btn ghost full" data-act="reopen" data-id="${esc(s.id)}">Reopen to finish</button>` : ""}
   </section>`;
 }
 function reopenSession(s){
@@ -1425,12 +1426,14 @@ function renderLive(plan){
     out += `<p class="eyebrow">Machines</p><div class="list">${plan.items.map(it=>exCard(it,plan)).join("")}</div>`;
     if(plan.abs.length) out += `<p class="eyebrow">Core on the mat</p><div class="list">${plan.abs.map(it=>exCard(it,plan)).join("")}</div>`;
     const doneN = plan.all.filter(it=>draft.entries[it.id]?.sets.length).length;
+    const allDone = plan.all.length>0 && plan.all.every(it=>draft.entries[it.id]?.done);
     out += `<div class="finish">
       <span class="eyebrow">Rate this workout</span>${starsRow()}
       <label class="eyebrow" for="sess-note" style="margin-top:6px">Notes</label>
       <textarea id="sess-note" placeholder="Anything to remember next week? e.g. leg press seat on 6, knees felt great">${esc(draft.note||"")}</textarea>
-      <button class="btn full" data-act="save" ${doneN?"":"disabled"}>Save workout${doneN?` · ${doneN} of ${plan.all.length} exercises`:""}</button>
-      ${doneN?"":`<p class="muted small" style="text-align:center">Tap an exercise to start your first set.</p>`}
+      <button class="btn ghost full" data-act="save" ${doneN?"":"disabled"}>Save workout${doneN?` · ${doneN} of ${plan.all.length} exercises`:""}</button>
+      <button class="btn full" data-act="finish-workout" ${allDone?"":"disabled"}>Finish workout</button>
+      <p class="muted small" style="text-align:center">${!doneN ? "Tap an exercise to start your first set." : allDone ? "Everything's done. Finish to close out today." : "Save to come back to it later. Finish unlocks once every exercise is done."}</p>
     </div>`;
   }
   out += `</section></div>`;
@@ -1865,7 +1868,7 @@ document.addEventListener("click", async ev=>{
   /* treadmill timer */
 
   /* save */
-  else if(a==="save"){
+  else if(a==="save" || a==="finish-workout"){
     const plan = buildPlan(); t.disabled=true;
     const exercises = plan.all.map(it=>{const d=draft.entries[it.id];
       // a reopened exercise keeps the range it was logged with (none, for pre-program workouts)
@@ -1873,7 +1876,7 @@ document.addEventListener("click", async ev=>{
       return Object.assign({id:it.id, target:d.target, planned:d.reopened ? d.planned : it.sets}, rg ? {range:{lo:rg.lo, hi:rg.hi}} : {}, {sets:d.sets.map(s=>({w:Number(s.w)||0,reps:Number(s.reps)||0,grade:s.grade||"right"})), note:d.note||""});}).filter(x=>x.sets.length);
     for(const [xid,d] of Object.entries(draft.entries)) if(d.sets.length && !exercises.some(x=>x.id===xid)) exercises.push(Object.assign({id:xid, target:d.target, planned:d.planned}, d.range ? {range:d.range} : {}, {sets:d.sets, note:d.note||""}));
     const noteEl = $("#sess-note");
-    const s = Object.assign({id:TODAY+"-"+plan.type+"-"+Date.now().toString(36), v:3, date:TODAY, type:plan.type, minutes:ui.minutes, energy:ui.energy, walk:plan.walk && liveGet().walkDone?plan.walk.min:0, rating:liveGet().rating||0, duration:liveElapsed(), exercises, note:noteEl?noteEl.value:"", createdAt:new Date().toISOString()}, progFields(plan.C));
+    const s = Object.assign({id:TODAY+"-"+plan.type+"-"+Date.now().toString(36), v:3, date:TODAY, type:plan.type, minutes:ui.minutes, energy:ui.energy, walk:plan.walk && liveGet().walkDone?plan.walk.min:0, rating:liveGet().rating||0, duration:liveElapsed(), finished:a==="finish-workout", exercises, note:noteEl?noteEl.value:"", createdAt:new Date().toISOString()}, progFields(plan.C));
     if(draft.reopen){ s.id = draft.reopen.id; s.createdAt = draft.reopen.createdAt; }
     const after = computeAll([...sessions, s]).W;
     const changes = exercises.map(x=>{ const st=after[x.id]; return st&&st.last ? `${LIB[x.id].name}: ${nextLine(x.id, st)}` : null; }).filter(Boolean);
@@ -1887,7 +1890,7 @@ document.addEventListener("click", async ev=>{
   }
   else if(a==="save-recovery"){
     const note = ($("#rec-note")||{}).value||"";
-    const s = Object.assign({id:TODAY+"-recovery-"+Date.now().toString(36), v:3, date:TODAY, type:"recovery", minutes:ui.minutes, energy:ui.energy, walk:ui.minutes, rating:liveGet().rating||0, duration:liveElapsed(), exercises:[], note, createdAt:new Date().toISOString()}, progFields(coachToday()));
+    const s = Object.assign({id:TODAY+"-recovery-"+Date.now().toString(36), v:3, date:TODAY, type:"recovery", minutes:ui.minutes, energy:ui.energy, walk:ui.minutes, rating:liveGet().rating||0, duration:liveElapsed(), finished:true, exercises:[], note, createdAt:new Date().toISOString()}, progFields(coachToday()));
     if(draft && draft.reopen){ s.id = draft.reopen.id; s.createdAt = draft.reopen.createdAt; }
     const summ = summarize(s);
     try{ await store.putSession(s); if(draft && draft.reopen){ draft=null; try{ localStorage.removeItem("coach.draft"); }catch(e){} } try{ localStorage.removeItem("coach.reopened"); }catch(e){} ui.saved=Object.assign(summ,{changes:[]}); endLive(); ui.focus="auto"; try{localStorage.setItem("coach.mix",JSON.stringify({date:dkeyNow(),seed:ui.mixSeed,on:false}));}catch(e){} ui.walkT=null; render(); }catch(e){ t.textContent="Couldn't save. Tap to try again."; }
