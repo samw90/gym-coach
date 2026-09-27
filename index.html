@@ -23,7 +23,7 @@
 <style>
 :root{
   --bg:#FBF8F2; --surface:#FFFEFA; --cream-2:#F3ECE1;
-  --blush:#F2E3E1; --blush-2:#E6CDCB;
+  --blush:#F2E3E1; --blush-2:#E6CDCB; --mauve-soft:#E4D2D8;
   --ink:#161213; --on-ink:#FFFEFA; --muted:#706466;
   --line:#161213; --hair:#E7DED2;
   --rose:#8C3A48; --good:#5E7A63; --warn:#A0703A;
@@ -40,7 +40,7 @@
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   color-scheme:dark;
   --bg:#151213; --surface:#1D191A; --cream-2:#29231F;
-  --blush:#33262A; --blush-2:#4A3439;
+  --blush:#33262A; --blush-2:#4A3439; --mauve-soft:#3E2C35;
   --ink:#F4EDE3; --on-ink:#151213; --muted:#B8AAA4;
   --line:#CDBFB3; --hair:#3A3230;
   --rose:#E0A0AE; --good:#A5C3AC; --warn:#DDB57B;
@@ -55,7 +55,7 @@
 :root[data-theme="dark"]{
   color-scheme:dark;
   --bg:#151213; --surface:#1D191A; --cream-2:#29231F;
-  --blush:#33262A; --blush-2:#4A3439;
+  --blush:#33262A; --blush-2:#4A3439; --mauve-soft:#3E2C35;
   --ink:#F4EDE3; --on-ink:#151213; --muted:#B8AAA4;
   --line:#CDBFB3; --hair:#3A3230;
   --rose:#E0A0AE; --good:#A5C3AC; --warn:#DDB57B;
@@ -194,7 +194,7 @@ body.live{padding-top:0;padding-bottom:40px}
 .ex{border-top:1px solid var(--hair)}
 .ex:first-child{border-top:0}
 .ex.done{background:var(--cafe-soft)}
-.ex.active{background:var(--blush);box-shadow:inset 3px 0 0 var(--rose)}
+.ex.active{background:var(--mauve-soft);box-shadow:inset 3px 0 0 var(--rose)}
 .ex.active .stepper,.ex.active .logbtns button:not([aria-pressed="true"]){background:var(--surface)}
 .ex-main{display:grid;grid-template-columns:1fr auto;gap:3px 14px;padding:14px 16px;align-items:center;width:100%;text-align:left;border:0;background:transparent}
 .ex-name{font-weight:600;font-size:15.5px;display:flex;align-items:center;gap:9px}
@@ -206,15 +206,10 @@ body.live{padding-top:0;padding-bottom:40px}
 .ex-w .unit{font-size:12px;color:var(--muted);margin-left:2px}
 .ex-w .tag{display:block;font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-top:4px}
 .tag.up{color:var(--good)} .tag.down{color:var(--warn)} .tag.new{color:var(--rose)}
-.lastnote{background:var(--cafe-soft);border:1px solid var(--hair);padding:14px 14px 12px;display:flex;flex-direction:column;gap:9px}
-.ln-head{display:flex;justify-content:space-between;align-items:baseline}
-.ln-date{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);font-weight:600}
-.ln-sets{display:flex;flex-wrap:wrap;gap:6px}
-.ln-set{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--hair);background:var(--surface);padding:3px 9px;font-size:13px;font-variant-numeric:tabular-nums;border-radius:999px}
-.ln-set i{width:6px;height:6px;border-radius:50%;background:var(--ink)}
-.ln-set i.easy{background:var(--sage)} .ln-set i.hard{background:var(--ochre)}
-.ln-read{font-family:var(--display);font-style:italic;font-weight:300;font-size:17px;line-height:1.35}
-.ln-plan{display:flex;gap:9px;align-items:center;font-size:14px;font-weight:500}
+.lastnote{border-left:2px solid var(--gold);padding:2px 0 2px 12px;display:flex;flex-direction:column;gap:3px;font-size:13.5px}
+.lastnote p{margin:0}
+.lastnote .eyebrow{margin-right:6px;font-size:10px}
+.ln-plan{font-weight:600}
 
 
 /* guided set flow */
@@ -559,6 +554,11 @@ const store = {
     try{ const s = JSON.parse(localStorage.getItem("coach.state")||"null"); if(s) state = Object.assign(structuredClone(DEFAULT_STATE), s); }catch(e){}
     if(!state.manual) state.manual = {};
     try{ sessions = JSON.parse(localStorage.getItem("coach.sessions")||"[]").sort(bySessionDesc); }catch(e){}
+    try{
+      const r = JSON.parse(localStorage.getItem("coach.reopened")||"null");
+      const pending = draft && draft.reopen && draft.reopen.id===(r&&r.id) && draft.reopen.date===TODAY;
+      if(r && !pending){ if(!sessions.some(x=>x.id===r.id)){ sessions.push(r); sessions.sort(bySessionDesc); this.persistLocal(); } localStorage.removeItem("coach.reopened"); }
+    }catch(e){}
     this.mode = "local";
     try{ navigator.storage && navigator.storage.persist && navigator.storage.persist(); }catch(e){}
     render();
@@ -971,6 +971,11 @@ function programState(){
 }
 function coachToday(){
   const P = programState(), next = P.next;
+  const R = draft && draft.reopen && draft.reopen.date===TODAY ? draft.reopen : null;
+  if(R){
+    const info = Number.isInteger(R.slot) ? Object.assign({}, slotInfo(R.slot), {type:R.type}) : Object.assign({}, slotInfo(P.open[0]), {type:R.type, slot:null});
+    return {P, next, info, mode:R.bonus?"bonus":"plan", adjust:"", mult:1, notes:[], trainedToday:false, reopen:R};
+  }
   const trainedToday = sessions.some(s=>s.date===TODAY);
   const pick = ui.focus==="auto" ? next.type : ui.focus;
   let mode = "plan", info = next, adjust = "";
@@ -999,6 +1004,7 @@ function coachToday(){
 }
 function autoFocus(){ return programState().next.type; }
 function progFields(C){
+  if(C.reopen){ const R = C.reopen, f = {}; for(const k of ["slot","bonus","block","week","phase","deload"]) if(R[k]!==undefined) f[k]=R[k]; return f; }
   const i = C.info, f = {block:i.block, week:i.week, phase:i.ph.phase};
   if(C.mode==="bonus") f.bonus = true; else f.slot = i.slot;
   if(i.ph.deload && C.mode!=="bonus") f.deload = true;
@@ -1044,11 +1050,10 @@ function lastMsg(id, st, todayW){
 function lastNote(id, m){
   if(!m) return "";
   const bw = LIB[id].bw;
+  const sets = m.date ? m.sets.map(x=>`${bw?"":x.w+"×"}${x.reps}`).join(" · ") : "";
   return `<div class="lastnote">
-    ${m.date?`<div class="ln-head"><span class="eyebrow">Last time</span><span class="ln-date">${fmtShort(m.date)}</span></div>
-    <div class="ln-sets">${m.sets.map(x=>`<span class="ln-set"><i class="${x.grade||"right"}" title="${GRADE[x.grade||"right"]}"></i>${bw?"":x.w+" × "}${x.reps}</span>`).join("")}</div>`:""}
-    ${m.read?`<p class="ln-read">${esc(m.read)}</p>`:""}
-    <p class="ln-plan"><span class="diamond"></span>${esc(m.plan)}</p>
+    ${sets?`<p><span class="eyebrow">Last time</span> <span class="num">${esc(sets)}</span></p>`:""}
+    ${m.plan?`<p class="ln-plan">${esc(m.plan)}</p>`:""}
   </div>`;
 }
 
@@ -1085,7 +1090,14 @@ function buildPlan(){
   } else {
     const ord = ORDER[type];
     const nType = sessions.filter(s=>s.type===type && s.date!==TODAY).length;
-    const rot = ord.rotate.map((_,i)=>ord.rotate[(i+nType)%ord.rotate.length]);
+    let rot = ord.rotate.map((_,i)=>ord.rotate[(i+nType)%ord.rotate.length]);
+    // didn't like the last one? lead with different accessory machines this time
+    const lastSame = sessions.find(x=>x.type===type && x.date!==TODAY && !x.bonus);
+    if(lastSame && lastSame.rating && lastSame.rating<=2){
+      const skip = new Set((lastSame.exercises||[]).map(x=>x.id));
+      rot = [...rot.filter(id=>!skip.has(id)), ...rot.filter(id=>skip.has(id))];
+      C.notes.push(`You didn't love your last ${TYPE_NAME[type].toLowerCase()} session, so the coach swapped in different machines.`);
+    }
     candidates = [...ord.fixed, ...rot];
   }
   const absSets = 2, absCost = cost(absSets,CORE_REST);
@@ -1111,7 +1123,7 @@ function buildPlan(){
 /* ---------- draft (the workout in progress) ---------- */
 function ensureDraft(plan){
   const key = TODAY+"|"+plan.type+(plan.type==="mix"?"|"+ui.mixSeed:"");
-  if(!draft || draft.key!==key) draft = {v:3, key, entries:{}, note:""};
+  if(!draft || (draft.key!==key && !(draft.reopen && draft.reopen.date===TODAY))) draft = {v:3, key, entries:{}, note:""};
   for(const it of plan.all){
     const rx = prescribe(it.id, plan.e);
     let d = draft.entries[it.id];
@@ -1274,7 +1286,35 @@ function renderToday(){
 }
 
 /* Overview of today's workout on the Today tab, with the button into workout mode */
+/* A workout saved today can be reopened to finish it. It comes out of the history into the
+   draft; a backup (coach.reopened) puts it back if it's never re-saved. */
+function savedTodayCard(s){
+  const exs = (s.exercises||[]).filter(x=>(x.sets||[]).length);
+  return `<section style="display:flex;flex-direction:column;gap:12px" aria-label="Today's workout">
+    <div class="plan-head"><div><p class="eyebrow">Today's workout · saved</p><h2>${esc(TYPE_NAME[s.type]||s.type)}</h2></div><span class="pill ${s.type}">${s.minutes||0} min</span></div>
+    ${s.type==="recovery"?"":`<div class="preview">${exs.map(x=>`<div class="pv done"><span>✓ ${esc(LIB[x.id]?LIB[x.id].name:x.id)}</span><span class="muted num">${esc(setsText(x.id, x.sets))}</span></div>`).join("")||`<div class="pv"><span class="muted">No sets logged</span></div>`}</div>`}
+    <button class="btn ghost full" data-act="reopen" data-id="${esc(s.id)}">Reopen to finish</button>
+  </section>`;
+}
+function reopenSession(s){
+  try{ localStorage.setItem("coach.reopened", JSON.stringify(s)); }catch(e){}
+  ui.energy = s.energy||3; ui.minutes = s.minutes||ui.minutes; ui.walk = s.type==="recovery" ? ui.walk : !!s.walk; persistUI();
+  ui.focus = "auto"; ui.saved = null;
+  const reopen = {id:s.id, createdAt:s.createdAt, date:s.date, type:s.type};
+  for(const k of ["slot","bonus","block","week","phase","deload"]) if(s[k]!==undefined) reopen[k]=s[k];
+  draft = {v:3, key:"", entries:{}, note:s.note||"", reopen};
+  for(const x of (s.exercises||[])){
+    const last = (x.sets||[]).slice(-1)[0] || {};
+    draft.entries[x.id] = {target:x.target||{w:last.w||0,reps:last.reps||10}, planned:x.planned||(x.sets||[]).length, range:x.range, sets:(x.sets||[]).map(y=>Object.assign({},y)), inW:last.w||0, inReps:(x.target&&x.target.reps)||last.reps||10, note:x.note||"", done:(x.sets||[]).length>=(x.planned||0), touched:true};
+  }
+  const plan = buildPlan(); draft.key = TODAY+"|"+plan.type+(plan.type==="mix"?"|"+ui.mixSeed:"");
+  persistDraft();
+  livePut({on:true, start:Date.now(), rating:s.rating||0, walkDone:!!s.walk, recNote:s.type==="recovery"?(s.note||""):""});
+}
 function todayPreview(plan){
+  const savedToday = sessions.find(s=>s.date===TODAY);
+  const inProgress = draft && Object.values(draft.entries||{}).some(d=>d.sets.length);
+  if(savedToday && !inProgress && !(draft && draft.reopen)) return savedTodayCard(savedToday);
   const e = plan.e, started = plan.type!=="recovery" && draft && Object.values(draft.entries).some(d=>d.sets.length);
   const n = started ? plan.all.filter(it=>draft.entries[it.id]?.sets.length).length : 0;
   let rows = "";
@@ -1308,15 +1348,15 @@ function renderLive(plan){
     out += `<div class="coachnote"><b>Recovery is part of the program.</b> A walk and some mobility today help you get more out of the next lift.</div>`;
     out += walkCard(plan) + `<p class="eyebrow">Stretch & mobility</p>
     <div class="list">${plan.stretches.map(([n,d])=>`<div class="ex"><div class="ex-main"><div class="ex-name">${esc(n)}</div><div class="ex-rx" style="padding-left:0">${esc(d)}</div></div></div>`).join("")}</div>
-    <div class="finish"><span class="eyebrow">How was it?</span>${starsRow()}<label for="rec-note" class="eyebrow">How does your body feel today?</label><textarea id="rec-note" placeholder="Sore spots, sleep, stress…">${esc(liveGet().recNote||"")}</textarea><button class="btn full" data-act="save-recovery">Log recovery day</button></div>`;
+    <div class="finish"><span class="eyebrow">Rate this session</span>${starsRow()}<label for="rec-note" class="eyebrow">How does your body feel today?</label><textarea id="rec-note" placeholder="Sore spots, sleep, stress…">${esc(liveGet().recNote||"")}</textarea><button class="btn full" data-act="save-recovery">Log recovery day</button></div>`;
   } else {
     out += walkCard(plan);
     out += `<p class="eyebrow">Machines</p><div class="list">${plan.items.map(it=>exCard(it,plan)).join("")}</div>`;
     if(plan.abs.length) out += `<p class="eyebrow">Core on the mat</p><div class="list">${plan.abs.map(it=>exCard(it,plan)).join("")}</div>`;
     const doneN = plan.all.filter(it=>draft.entries[it.id]?.sets.length).length;
     out += `<div class="finish">
-      <span class="eyebrow">How did today go overall?</span>${starsRow()}
-      <label class="sr-only" for="sess-note">Notes</label>
+      <span class="eyebrow">Rate this workout</span>${starsRow()}
+      <label class="eyebrow" for="sess-note" style="margin-top:6px">Notes</label>
       <textarea id="sess-note" placeholder="Anything to remember next week? e.g. leg press seat on 6, knees felt great">${esc(draft.note||"")}</textarea>
       <button class="btn full" data-act="save" ${doneN?"":"disabled"}>Save workout${doneN?` · ${doneN} of ${plan.all.length} exercises`:""}</button>
       ${doneN?"":`<p class="muted small" style="text-align:center">Tap an exercise to start your first set.</p>`}
@@ -1339,7 +1379,7 @@ function liveGet(){ try{ const l = JSON.parse(localStorage.getItem("coach.live")
 function livePut(patch){ try{ localStorage.setItem("coach.live", JSON.stringify(Object.assign({date:TODAY, start:Date.now(), on:!!ui.live}, liveGet(), patch))); }catch(e){} }
 function starsRow(){
   const r = liveGet().rating||0;
-  return `<div class="stars" role="radiogroup" aria-label="Rate this workout">${[1,2,3,4,5].map(n=>`<button class="star${n<=r?" on":""}" data-act="rate" data-v="${n}" role="radio" aria-checked="${n===r}" aria-label="${n} star${n>1?"s":""}">★</button>`).join("")}</div>`;
+  return `<p class="small muted" style="margin:-4px 0 0">Did you like this workout? Your rating tunes your program.</p><div class="stars" role="radiogroup" aria-label="Rate this workout">${[1,2,3,4,5].map(n=>`<button class="star${n<=r?" on":""}" data-act="rate" data-v="${n}" role="radio" aria-checked="${n===r}" aria-label="${n} star${n>1?"s":""}">★</button>`).join("")}</div>`;
 }
 function endLive(){ ui.live = false; try{ localStorage.removeItem("coach.live"); }catch(e){} }
 setInterval(()=>{ const c = document.getElementById("live-clock"); if(c) c.textContent = fmtClock(liveElapsed()); }, 1000);
@@ -1436,7 +1476,7 @@ function flowView(it, plan, d){
       </div>${setList(id,d)}`;
   } else if(n<total){
     const prev = n>0 && prevSets && prevSets[n] ? `Last time set ${n+1}: ${ex.bw?"":prevSets[n].w+" "+u+" × "}${prevSets[n].reps}` : "";
-    body = `${n===0?lastNote(id, prescribe(id, plan.e).msg)+`<p class="cue">${esc(ex.cue)}</p>`:""}${cheer}
+    body = `${n===0?`<p class="cue">${esc(ex.cue)}</p>`:""}${cheer}
       <div class="sethead"><h3>Set ${n+1} <span class="muted" style="font-size:16px">of ${total}</span></h3>${ticks}</div>
       <p class="target">Goal: <b>${ex.bw?"":`${d.target.w} ${u} × `}${d.target.reps}</b> ${repWord(id)}${perSide(id)}${prev?` <span class="muted small">· ${esc(prev)}</span>`:""}</p>
       <div class="steppers"${ex.bw?' style="grid-template-columns:1fr"':""}>
@@ -1446,6 +1486,7 @@ function flowView(it, plan, d){
       <span class="lbl">Set ${n+1} · how did it feel?</span>
       <div class="logbtns" role="radiogroup">${["easy","right","hard"].map(g=>`<button data-act="pick-grade" data-g="${g}" data-id="${id}" role="radio" aria-pressed="${(d.pick||"right")===g}" aria-checked="${(d.pick||"right")===g}">${GRADE[g]}</button>`).join("")}</div>
       <button class="btn full logset" data-act="log" data-g="${d.pick||"right"}" data-id="${id}" data-rest="${it.rest}" data-total="${total}">Log set ${n+1}</button>
+      ${n===0?lastNote(id, prescribe(id, plan.e).msg):""}
       ${n===total-1?`<p class="hint">A hard last set is normal. The coach looks at all your sets together.</p>`:""}
       ${setList(id,d)}`;
   } else {
@@ -1669,6 +1710,10 @@ document.addEventListener("click", async ev=>{
   else if(a==="min"){ ui.minutes=Number(t.dataset.v); ui.saved=null; persistUI(); render(); }
   else if(a==="walk"){ ui.walk=!ui.walk; persistUI(); render(); }
   else if(a==="focus"){ const v=t.dataset.v; if(v==="mix"){ const d=draft && draft.key && draft.key.startsWith(TODAY+"|mix") && Object.values(draft.entries).some(x=>x.sets.length); if(ui.focus!=="mix" || !d) newMix(); } else { try{ localStorage.setItem("coach.mix", JSON.stringify({date:dkeyNow(), seed:ui.mixSeed, on:false})); }catch(e){} } ui.focus = v===autoFocus() && v!=="mix" ? "auto" : v; ui.saved=null; ui.open=null; render(); }
+  else if(a==="reopen"){
+    const s = sessions.find(x=>x.id===id); if(!s) return;
+    reopenSession(s); await store.deleteSession(s.id); setLive(true); keepAwake(); render(); window.scrollTo({top:0});
+  }
   else if(a==="live-start"){ setLive(true); keepAwake(); ui.saved=null; render(); window.scrollTo({top:0}); }
   else if(a==="live-exit"){ setLive(false); render(); window.scrollTo({top:0}); }
   else if(a==="reshuffle"){ newMix(); ui.open=null; render(); }
@@ -1733,14 +1778,16 @@ document.addEventListener("click", async ev=>{
     const exercises = plan.all.map(it=>{const d=draft.entries[it.id];
       const rg = repRange(it.id, plan.e);
       return {id:it.id, target:d.target, planned:it.sets, range:{lo:rg.lo, hi:rg.hi}, sets:d.sets.map(s=>({w:Number(s.w)||0,reps:Number(s.reps)||0,grade:s.grade||"right"})), note:d.note||""};}).filter(x=>x.sets.length);
+    for(const [xid,d] of Object.entries(draft.entries)) if(d.sets.length && !exercises.some(x=>x.id===xid)) exercises.push({id:xid, target:d.target, planned:d.planned, range:d.range, sets:d.sets, note:d.note||""});
     const noteEl = $("#sess-note");
     const s = Object.assign({id:TODAY+"-"+plan.type+"-"+Date.now().toString(36), v:3, date:TODAY, type:plan.type, minutes:ui.minutes, energy:ui.energy, walk:plan.walk && liveGet().walkDone?plan.walk.min:0, rating:liveGet().rating||0, exercises, note:noteEl?noteEl.value:"", createdAt:new Date().toISOString()}, progFields(plan.C));
+    if(draft.reopen){ s.id = draft.reopen.id; s.createdAt = draft.reopen.createdAt; }
     const after = computeAll([...sessions, s]).W;
     const changes = exercises.map(x=>{ const st=after[x.id]; return st&&st.last ? `${LIB[x.id].name}: ${nextLine(x.id, st)}` : null; }).filter(Boolean);
     const summ = summarize(s);
     try{
       await store.putSession(s);
-      draft=null; try{localStorage.removeItem("coach.draft");}catch(e){}
+      draft=null; try{localStorage.removeItem("coach.draft"); localStorage.removeItem("coach.reopened");}catch(e){}
       ui.saved = Object.assign(summ, {changes}); endLive();
       ui.open=null; ui.focus="auto"; try{localStorage.setItem("coach.mix",JSON.stringify({date:dkeyNow(),seed:ui.mixSeed,on:false}));}catch(e){} ui.rest=null; ui.walkT=null; render(); window.scrollTo({top:0,behavior:"smooth"});
     }catch(err){ t.disabled=false; t.textContent="Couldn't save. Check your connection and tap again."; }
@@ -1748,8 +1795,9 @@ document.addEventListener("click", async ev=>{
   else if(a==="save-recovery"){
     const note = ($("#rec-note")||{}).value||"";
     const s = Object.assign({id:TODAY+"-recovery-"+Date.now().toString(36), v:3, date:TODAY, type:"recovery", minutes:ui.minutes, energy:ui.energy, walk:ui.minutes, rating:liveGet().rating||0, exercises:[], note, createdAt:new Date().toISOString()}, progFields(coachToday()));
+    if(draft && draft.reopen){ s.id = draft.reopen.id; s.createdAt = draft.reopen.createdAt; }
     const summ = summarize(s);
-    try{ await store.putSession(s); ui.saved=Object.assign(summ,{changes:[]}); endLive(); ui.focus="auto"; try{localStorage.setItem("coach.mix",JSON.stringify({date:dkeyNow(),seed:ui.mixSeed,on:false}));}catch(e){} ui.walkT=null; render(); }catch(e){ t.textContent="Couldn't save. Tap to try again."; }
+    try{ await store.putSession(s); if(draft && draft.reopen){ draft=null; try{ localStorage.removeItem("coach.draft"); }catch(e){} } try{ localStorage.removeItem("coach.reopened"); }catch(e){} ui.saved=Object.assign(summ,{changes:[]}); endLive(); ui.focus="auto"; try{localStorage.setItem("coach.mix",JSON.stringify({date:dkeyNow(),seed:ui.mixSeed,on:false}));}catch(e){} ui.walkT=null; render(); }catch(e){ t.textContent="Couldn't save. Tap to try again."; }
   }
 
   /* history */
