@@ -249,6 +249,7 @@ body.live{padding-top:0;padding-bottom:40px}
 .setedit .row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
 .setedit input{width:80px}
 .cheer{font-family:var(--display);font-style:italic;font-size:17px;color:var(--rose);line-height:1.35}
+.flow.holding .steppers,.flow.holding .logbtns,.flow.holding .logset,.flow.holding > .lbl,.flow.holding .hint,.flow.holding .logged,.flow.holding .target{display:none}
 .timer{display:flex;flex-direction:column;align-items:center;gap:12px;padding:6px 0 4px;text-align:center}
 .ring{position:relative;width:170px;height:170px}
 .ring svg{position:absolute;inset:0}
@@ -1176,6 +1177,46 @@ function tick(){
 function setText(id,t){ const el=document.getElementById(id); if(el && el.textContent!==t) el.textContent=t; }
 const C_RING = 2*Math.PI*78;
 function setArc(id,frac){ const el=document.getElementById(id); if(el) el.setAttribute("stroke-dashoffset", String(C_RING*(1-frac))); }
+/* ---------- hold timer for timed moves (planks) ----------
+   Start → 5-second countdown to get into position → counts up, chimes at the goal.
+   Side moves time one side, then the other; the weaker side is what gets logged. */
+const HOLD_READY = 5;
+function holdElapsed(h){ return Math.max(0, Math.floor((Date.now()-h.t0)/1000)); }
+function holdTimer(id, d){
+  const h = ui.hold && ui.hold.id===id ? ui.hold : null, goal = d.target.reps, side = LIB[id].perSide;
+  if(!h) return `<div class="timer hold">
+      <div class="ring">${ringSVG("hold-arc", 0)}<div class="clock"><b>${fmtClock(goal)}</b><span>Goal${side?" each side":""}</span></div></div>
+      <button class="btn" data-act="hold-start" data-id="${id}">Start timer</button>
+      <p class="small muted">You get ${HOLD_READY} seconds to get into position.</p>
+    </div>`;
+  if(h.phase==="ready") return `<div class="timer hold">
+      <div class="ring">${ringSVG("hold-arc", 0)}<div class="clock"><b id="hold-clock">${HOLD_READY-holdElapsed(h)}</b><span>${h.side===2?"Other side":"Get set"}</span></div></div>
+      <button class="btn ghost sm" data-act="hold-cancel">Cancel</button>
+    </div>`;
+  const el = holdElapsed(h);
+  return `<div class="timer hold">
+      <div class="ring">${ringSVG("hold-arc", Math.min(1, el/goal))}<div class="clock"><b id="hold-clock">${fmtClock(el)}</b><span id="hold-lbl">${el>=goal?"Goal reached":side?(h.side===1?"First side":"Second side"):"Hold"}</span></div></div>
+      <button class="btn" data-act="hold-stop" data-id="${id}">${side && h.side===1 ? "Switch sides" : "Stop"}</button>
+    </div>`;
+}
+function holdTick(){
+  const h = ui.hold; if(!h){ clearInterval(holdTick.t); holdTick.t=null; return; }
+  const el = holdElapsed(h);
+  if(h.phase==="ready"){
+    const left = HOLD_READY-el;
+    if(left<=0){ h.phase="hold"; h.t0=Date.now(); h.chimed=false; beep(1175); render(); }
+    else { setText("hold-clock", String(left)); if(left!==h.lastBeep){ h.lastBeep=left; if(left<=3) beep(660); } }
+    return;
+  }
+  const goal = draft.entries[h.id].target.reps;
+  setText("hold-clock", fmtClock(el)); setArc("hold-arc", Math.min(1, el/goal));
+  if(el>=goal && !h.chimed){ h.chimed=true; chime(); setText("hold-lbl","Goal reached"); }
+}
+function beep(freq){
+  try{ unlockAudio(); const o=audioCtx.createOscillator(), g=audioCtx.createGain(); o.type="sine"; o.frequency.value=freq;
+    g.gain.setValueAtTime(0.0001,audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.25,audioCtx.currentTime+0.02); g.gain.exponentialRampToValueAtTime(0.0001,audioCtx.currentTime+0.25);
+    o.connect(g).connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime+0.3); }catch(e){}
+}
 function ringSVG(id, frac){
   return `<svg viewBox="0 0 170 170" aria-hidden="true"><circle cx="85" cy="85" r="78" fill="none" stroke="var(--hair)" stroke-width="3"/><circle id="${id}" cx="85" cy="85" r="78" fill="none" stroke="${id.startsWith('walk')?'var(--sage)':'var(--plum)'}" stroke-width="3" stroke-linecap="round" stroke-dasharray="${C_RING}" stroke-dashoffset="${C_RING*(1-frac)}" transform="rotate(-90 85 85)"/></svg>`;
 }
@@ -1501,6 +1542,7 @@ function flowView(it, plan, d){
     body = `${n===0?`<p class="cue">${esc(ex.cue)}</p>`:""}${cheer}
       <div class="sethead"><h3>Set ${n+1} <span class="muted" style="font-size:16px">of ${total}</span></h3>${ticks}</div>
       <p class="target">Goal: <b>${ex.bw?"":`${d.target.w} ${u} × `}${d.target.reps}</b> ${repWord(id)}${perSide(id)}${prev?` <span class="muted small">· ${esc(prev)}</span>`:""}</p>
+      ${ex.timed?holdTimer(id, d):""}
       <div class="steppers"${ex.bw?' style="grid-template-columns:1fr"':""}>
         ${ex.bw?"":`<div class="stepper"><span class="lbl">Weight · ${u}</span><div class="ctl"><button type="button" data-act="adj" data-f="w" data-d="-1" data-id="${id}" aria-label="Less weight">−</button><input id="in-w-${id}" type="text" inputmode="decimal" autocomplete="off" value="${esc(d.inW)}" data-act="inW" data-id="${id}" aria-label="Weight used"><button type="button" data-act="adj" data-f="w" data-d="1" data-id="${id}" aria-label="More weight">+</button></div></div>`}
         <div class="stepper"><span class="lbl">${ex.timed?"Seconds held":"Reps done"}</span><div class="ctl"><button type="button" data-act="adj" data-f="r" data-d="-1" data-id="${id}" aria-label="Fewer">−</button><input id="in-r-${id}" type="text" inputmode="numeric" autocomplete="off" value="${esc(d.inReps)}" data-act="inR" data-id="${id}" aria-label="${ex.timed?"Seconds held":"Reps done"}"><button type="button" data-act="adj" data-f="r" data-d="1" data-id="${id}" aria-label="More">+</button></div></div>
@@ -1517,7 +1559,7 @@ function flowView(it, plan, d){
       <button class="btn full" data-act="finish-ex" data-id="${id}">Finish ${esc(ex.name)}</button>
       <div class="btnrow" style="justify-content:flex-start"><button class="linkbtn" data-act="add-set" data-id="${id}">Add another set</button></div>`;
   }
-  return `<div class="flow">${body}</div>`;
+  return `<div class="flow${ui.hold && ui.hold.id===id ? " holding" : ""}">${body}</div>`;
 }
 function lastSessionSets(id){
   for(const s of sessions){ if(s.date===TODAY) continue; const x=(s.exercises||[]).find(y=>y.id===id && (y.sets||[]).length); if(x) return x.sets; }
@@ -1745,6 +1787,17 @@ document.addEventListener("click", async ev=>{
     if(t.dataset.f==="w"){ const cur = Number(d.inW)||0; d.inW = Number(t.dataset.d)>0 ? (cur?stepUp(id,cur):roundFor(id,5)) : stepDown(id,cur||5); const el=document.getElementById("in-w-"+id); if(el) el.value=d.inW; }
     else { d.inReps = Math.max(0,(Number(d.inReps)||0) + Number(t.dataset.d)*(LIB[id].timed?5:1)); const el=document.getElementById("in-r-"+id); if(el) el.value=d.inReps; }
     d.touched = true; persistDraft();
+  }
+  else if(a==="hold-start"){ unlockAudio(); keepAwake(); ui.rest=null; ui.hold={id, phase:"ready", t0:Date.now(), side:1}; if(!holdTick.t) holdTick.t=setInterval(holdTick, 200); render(); }
+  else if(a==="hold-cancel"){ ui.hold=null; render(); }
+  else if(a==="hold-stop"){
+    const h = ui.hold; if(!h) return;
+    const secs = holdElapsed(h), d = draft.entries[h.id];
+    if(LIB[h.id].perSide && h.side===1){ ui.hold = {id:h.id, phase:"ready", t0:Date.now(), side:2, s1:secs}; render(); return; }
+    const held = h.s1!=null ? Math.min(h.s1, secs) : secs;
+    d.inReps = held; d.touched = true; ui.hold = null;
+    ui.cheer = {id:h.id, text: h.s1!=null ? `First side ${h.s1} sec, second side ${secs} sec. Logging ${held}, the weaker side.` : `Held ${held} sec.${held>=d.target.reps?" Goal hit.":""}`};
+    persistDraft(); render();
   }
   else if(a==="pick-grade"){ readInputs(id); draft.entries[id].pick = t.dataset.g; persistDraft(); render(); }
   else if(a==="walk-check"){ livePut({walkDone:!liveGet().walkDone}); render(); }
