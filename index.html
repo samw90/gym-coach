@@ -375,18 +375,9 @@ td.r,th.r{text-align:right}
 .bar{height:3px;background:var(--hair);position:relative}
 .bar i{position:absolute;inset:0 auto 0 0;background:var(--ink)}
 .bar i::after{content:"";position:absolute;right:-3px;top:-3px;width:9px;height:9px;border-radius:50%;background:var(--gold)}
-.gallery{display:flex;gap:0;overflow-x:auto;border:1px solid var(--line);background:var(--surface);scroll-snap-type:x mandatory}
-.gcell{flex:0 0 150px;margin:0;padding:18px 10px 14px;display:flex;flex-direction:column;align-items:center;gap:8px;border-right:1px solid var(--hair);scroll-snap-align:start;text-align:center}
-.gcell:last-child{border-right:0}
 .monthcard{margin:0;border:1px solid var(--line);background:var(--surface);padding:18px 16px 16px;display:flex;flex-direction:column;align-items:center;gap:10px}
 .monthcard svg{width:100%;max-width:320px;height:auto}
 .monthcard figcaption{font-size:13px;color:var(--muted);text-align:center}
-.gcell.now{flex-basis:190px;background:var(--cafe-soft)}
-.gcell svg{width:110px;height:auto}
-.gcell.now svg{width:150px}
-.gcell figcaption{display:flex;flex-direction:column;gap:1px}
-.gcell i{font-family:var(--display);font-size:16px}
-.gcell span{font-size:11.5px;color:var(--muted)}
 .weekvis{border:1px solid var(--line);background:var(--surface);padding:18px 14px 0;display:flex;flex-direction:column;gap:16px}
 .rings{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .vring{display:flex;flex-direction:column;align-items:center;gap:2px;text-align:center}
@@ -1579,11 +1570,8 @@ function renderProgress(){
     const lbl = v.type==="light" ? "Light day" : v.type==="mix" ? "Surprise mix" : sl.label;
     return `<div class="vring done"><svg viewBox="0 0 80 80" aria-hidden="true"><circle cx="40" cy="40" r="34" fill="${sl.soft}" stroke="${sl.c}" stroke-width="3"/><text x="40" y="46" text-anchor="middle" class="vday">${DAYS[parseKey(v.date).getDay()]}</text></svg><b>${lbl}</b><span>${v.minutes||0} min</span></div>`;
   };
-  const shown = DX.wk.weeks.filter(w=>w.n>0 || w.key===DX.wk.curKey).slice(-12).reverse();
   let out = `<div class="wrap" style="padding:0">
   ${monthCard()}
-  <div class="sectionhead"><p class="eyebrow">Your arrangements</p><h2>${esc(MOODS[DX.wk.map[DX.wk.curKey].mood][0])}<span class="muted" style="font-size:15px;font-family:var(--body)"> · this week</span></h2></div>
-  <div class="gallery">${shown.map(w=>`<figure class="gcell${w.key===DX.wk.curKey?" now":""}"><svg viewBox="0 0 200 250" role="img" aria-label="${esc(MOODS[w.mood][0])}, ${w.n} of 3 stems">${arrangementSVG(w.mood, w.n, {gold:w.complete, charm:DX.events.some(e=>e.week===w.key)})}</svg><figcaption><i>${w.complete||w.key===DX.wk.curKey?esc(MOODS[w.mood][0]):"Week of"}</i><span>${w.key===DX.wk.curKey?`${w.n} of 3 stems`:fmtShort(w.key)+(w.complete?" · complete":` · ${w.n} of 3`)}</span></figcaption></figure>`).join("")}</div>
   <div class="sectionhead"><p class="eyebrow">This week</p><h2>${Math.min(3,slots.filter(x=>x.s).length)} of 3 visits</h2></div>
   <div class="weekvis">
     <div class="rings">${slots.map(ring).join("")}</div>
