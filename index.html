@@ -121,6 +121,8 @@ header.top{display:flex;flex-direction:column;gap:6px;padding-bottom:16px;border
 .q-label{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-weight:600}
 .q-label .muted{font-weight:400}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
+.focus-why{margin:0;line-height:1.45}
+.focus-why .linkbtn{font-size:inherit;padding:0 0 0 2px}
 .chip{border:1px solid var(--line);background:transparent;border-radius:2px;padding:7px 12px;font-size:14px;font-weight:500;transition:background .15s,color .15s}
 .chip:hover{background:var(--cream-2)}
 .chip[aria-pressed="true"]{background:var(--ink);color:var(--on-ink)}
@@ -881,18 +883,40 @@ function summarize(s){
 }
 
 
-function autoFocus(){
-  const done = sessions.filter(s=>s.date===TODAY);
-  if(done.length) return done[0].type;
-  const wk = thisWeek();
+/* The coach's suggested focus for today, from energy, time and what this week already holds.
+   Tapping another focus overrides it; tapping the suggested one goes back to following it. */
+function recommend(){
+  const done = sessions.find(s=>s.date===TODAY);
+  if(done) return {type:done.type, why:"Matches what you logged today."};
+  const started = draft && draft.key && draft.key.startsWith(TODAY+"|") && Object.values(draft.entries||{}).some(x=>x.sets.length);
+  if(started) return {type:draft.key.split("|")[1], why:"You've already started this one."};
+
+  const wk = thisWeek(), en = ui.energy, min = ui.minutes;
   const hasL = wk.some(s=>s.type==="lower"), hasU = wk.some(s=>s.type==="upper");
   const lifts = wk.filter(s=>["lower","upper","mix"].includes(s.type)).length;
-  if((hasL && hasU) || lifts>=2) return "recovery";
-  if(hasL) return "upper";
-  if(hasU) return "lower";
-  const last = (sessions.find(s=>s.type==="lower"||s.type==="upper")||{}).type;
-  return last==="lower" ? "upper" : "lower";
+  const liftsDone = (hasL && hasU) || lifts>=2;
+  const visits = new Set(wk.map(s=>s.date)).size;
+  const nth = ["First","Second","Third"][visits] || "Another";
+
+  if(en===1) return {type:"recovery", why:"You're drained. A walk and a stretch still count as a visit."};
+  if(liftsDone){
+    if(en>=4 && min>=20) return {type:"light", why:"Both lifting days are done and you have energy to spare, so a light full-body day."};
+    return {type:"recovery", why:"Both lifting days are done. Recovery rounds out the week."};
+  }
+  if(en===2 && min<=10) return {type:"recovery", why:"Tired with only 10 minutes. A walk and a stretch is the right call."};
+
+  let type;
+  if(hasL) type = "upper";
+  else if(hasU) type = "lower";
+  else { const last = (sessions.find(s=>s.type==="lower"||s.type==="upper")||{}).type; type = last==="lower" ? "upper" : "lower"; }
+  const other = type==="lower" ? "upper" : "lower";
+  const left = !hasL && !hasU && lifts===0 ? ` ${TYPE_NAME[other]} next time.` : "";
+  if(en===2) return {type, why:`Tired, so the plan eases off: lighter weights and fewer sets.${left}`};
+  if(min<=10) return {type, why:`Only 10 minutes, so a short version with 2 sets each.${left}`};
+  if(left) return {type, why:`${nth} visit this week. ${TYPE_NAME[type]} today, ${TYPE_NAME[other].toLowerCase()} next time.`};
+  return {type, why:`${nth} visit this week, and ${TYPE_NAME[type].toLowerCase()} is still to do.`};
 }
+function autoFocus(){ return recommend().type; }
 
 function prescribe(id, e){
   const ex = LIB[id], rg = range(id), st = DER.W[id] || {};
@@ -1132,10 +1156,10 @@ function renderToday(){
   const plan = buildPlan();
   const e = plan.e;
   if(plan.type!=="recovery") ensureDraft(plan);
-  const auto = autoFocus();
+  const rec = recommend(), auto = rec.type;
   const eff = ui.focus==="auto" ? auto : ui.focus;
   const focusChips = [["lower",TYPE_NAME.lower],["upper",TYPE_NAME.upper],["recovery",TYPE_NAME.recovery],["light",TYPE_NAME.light],["mix","Surprise me"]]
-    .map(([v,l])=>`<button class="chip" data-act="focus" data-v="${v}" aria-pressed="${eff===v}"${v===auto?' title="Suggested for this week"':""}>${l}${v===auto?'<i class="sugg" aria-label="suggested"></i>':""}</button>`).join("");
+    .map(([v,l])=>`<button class="chip" data-act="focus" data-v="${v}" aria-pressed="${eff===v}"${v===auto?' title="Suggested for today"':""}>${l}${v===auto?'<i class="sugg" aria-label="suggested"></i>':""}</button>`).join("");
 
   let out = `<div class="wrap" style="padding:0">${savedToast()}${weekCard()}
   <section class="panel" aria-label="Check in">
@@ -1148,8 +1172,9 @@ function renderToday(){
       <div class="seg">${[10,20,30,40].map(m=>`<button data-act="min" data-v="${m}" aria-pressed="${ui.minutes===m}">${m}</button>`).join("")}</div>
     </div>
     <div class="q">
-      <div class="q-label"><span>Focus</span><span class="muted small"><i class="sugg" style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--gold);margin-right:6px;vertical-align:1px"></i>suggested for this week</span></div>
+      <div class="q-label"><span>Focus</span><span class="muted small"><i class="sugg" style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--gold);margin-right:6px;vertical-align:1px"></i>suggested for today</span></div>
       <div class="chips">${focusChips}</div>
+      <p class="small muted focus-why">${eff===auto ? esc(rec.why) : `Your pick. The coach suggests ${esc(TYPE_NAME[auto])}. <button class="linkbtn" data-act="focus" data-v="${auto}">Use suggestion</button>`}</p>
     </div>
     <div class="toggle">
       <div><div style="font-weight:600">Treadmill walk first</div><div class="muted small">Warm-up that comes out of your total time</div></div>
@@ -1467,7 +1492,7 @@ document.addEventListener("click", async ev=>{
   if(a==="energy"){ ui.energy=Number(t.dataset.v); ui.saved=null; persistUI(); render(); }
   else if(a==="min"){ ui.minutes=Number(t.dataset.v); ui.saved=null; persistUI(); render(); }
   else if(a==="walk"){ ui.walk=!ui.walk; persistUI(); render(); }
-  else if(a==="focus"){ const v=t.dataset.v; if(v==="mix"){ const d=draft && draft.key && draft.key.startsWith(TODAY+"|mix") && Object.values(draft.entries).some(x=>x.sets.length); if(ui.focus!=="mix" || !d) newMix(); } else { try{ localStorage.setItem("coach.mix", JSON.stringify({date:dkeyNow(), seed:ui.mixSeed, on:false})); }catch(e){} } ui.focus=v; ui.saved=null; ui.open=null; render(); }
+  else if(a==="focus"){ const v=t.dataset.v; if(v==="mix"){ const d=draft && draft.key && draft.key.startsWith(TODAY+"|mix") && Object.values(draft.entries).some(x=>x.sets.length); if(ui.focus!=="mix" || !d) newMix(); } else { try{ localStorage.setItem("coach.mix", JSON.stringify({date:dkeyNow(), seed:ui.mixSeed, on:false})); }catch(e){} } ui.focus = v===autoFocus() && v!=="mix" ? "auto" : v; ui.saved=null; ui.open=null; render(); }
   else if(a==="reshuffle"){ newMix(); ui.open=null; render(); }
   else if(a==="chart"){ ui.chartEx=t.dataset.v; render(); }
   else if(a==="all-dist"){ ui.allDist=!ui.allDist; render(); }

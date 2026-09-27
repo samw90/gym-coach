@@ -15,7 +15,8 @@ A personal, phone-first workout coach for machine training at Lifetime (Plymouth
 
 ## Architecture (all inside the one `<script>`)
 - `LIB`: exercise library (machines, dumbbell core, bodyweight core). `ORDER`: rotation per day type (`lower`, `upper`, `light`, `core`). `ENERGY`: how energy changes weight, sets and rest.
-- `buildPlan()` sizes the workout to the time budget. `ui.focus`: `auto` (the week's suggested type), `lower`, `upper`, `recovery`, `light`, or `mix` (Surprise me, a seeded random shuffle stored in `localStorage` under `coach.mix`).
+- `recommend()` suggests today's focus with a one-line reason, from energy, minutes and what this week already holds: drained → recovery; both lifts done → light (energy 4+, 20+ min) or recovery; tired with 10 min → recovery; otherwise the lift still missing this week. A workout already logged or started today wins. Tapping another chip overrides it; tapping the suggested chip or "Use suggestion" returns to `auto`.
+- `buildPlan()` sizes the workout to the time budget. `ui.focus`: `auto` (follows `recommend()`), `lower`, `upper`, `recovery`, `light`, or `mix` (Surprise me, a seeded random shuffle stored in `localStorage` under `coach.mix`).
 - `draft`: the workout in progress, saved to `localStorage` (`coach.draft`) until the whole session is saved. The header dot turns red while logged sets are unsaved.
 - Guided set flow: stepper inputs, then log the set as Easy / Just right / Hard, then a rest timer. There's also a treadmill timer. Sets can be edited or deleted.
 - **Progression is derived, never stored.** `computeAll()` replays every session (plus manual overrides in `state.manual`, keyed by timestamp) through `evaluate()`:
