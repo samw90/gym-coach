@@ -961,8 +961,9 @@ function summarize(s){
      it's a swap (the skipped one moves to next visit). Otherwise it's a
      bonus day: logged and counted, but the program stays where it was.
    ====================================================================== */
-function programState(){
+function programState(extraSlot){
   const done = new Set(sessions.filter(s=>Number.isInteger(s.slot)).map(s=>s.slot));
+  if(Number.isInteger(extraSlot)) done.add(extraSlot);
   const max = done.size ? Math.max(...done) : -1;
   let wk = max<0 ? 0 : Math.floor(max/3);
   if([0,1,2].every(d=>done.has(wk*3+d))) wk++;
@@ -1264,6 +1265,12 @@ function renderToday(){
   const e = plan.e;
   if(plan.type!=="recovery") ensureDraft(plan);
   if(ui.live) return renderLive(plan);
+  const savedToday = sessions.find(s=>s.date===TODAY);
+  const started = (draft && (Object.values(draft.entries||{}).some(d=>d.sets.length) || (draft.reopen && draft.reopen.date===TODAY))) || !!liveGet().start;
+  if(savedToday || started){
+    const next = savedToday && !started ? programState().next : programState(plan.C.mode==="bonus" ? null : plan.C.info.slot).next;
+    return `<div class="wrap" style="padding:0">${savedToast()}${started ? todayPreview(plan, true) : savedTodayCard(savedToday)}${nextUpCard(next)}${weekCard()}</div>`;
+  }
   let out = `<div class="wrap" style="padding:0">${savedToast()}${focusCard(plan)}${weekCard()}
   <section class="panel" aria-label="Check in">
     <div class="q">
@@ -1311,10 +1318,7 @@ function reopenSession(s){
   persistDraft();
   livePut({on:true, start:Date.now(), rating:s.rating||0, walkDone:!!s.walk, recNote:s.type==="recovery"?(s.note||""):""});
 }
-function todayPreview(plan){
-  const savedToday = sessions.find(s=>s.date===TODAY);
-  const inProgress = draft && Object.values(draft.entries||{}).some(d=>d.sets.length);
-  if(savedToday && !inProgress && !(draft && draft.reopen)) return savedTodayCard(savedToday);
+function todayPreview(plan, inProgress){
   const e = plan.e, started = plan.type!=="recovery" && draft && Object.values(draft.entries).some(d=>d.sets.length);
   const n = started ? plan.all.filter(it=>draft.entries[it.id]?.sets.length).length : 0;
   let rows = "";
@@ -1324,12 +1328,12 @@ function todayPreview(plan){
     return `<div class="pv${d.done?" done":""}"><span>${d.done?"✓ ":""}${esc(L.name)}</span><span class="muted num">${it.sets} × ${d.target.reps}${L.bw?"":` · ${d.target.w} ${unitOf(it.id)}`}</span></div>`; }).join("");
   return `<section style="display:flex;flex-direction:column;gap:12px" aria-label="Today's workout">
     <div class="plan-head">
-      <div><p class="eyebrow">Today's workout</p><h2>${TYPE_NAME[plan.type]}</h2>${plan.type==="mix"?`<p class="small muted">A random mix of legs and upper body, just for today.</p>`:""}</div>
+      <div><p class="eyebrow">Today's workout${inProgress?" · in progress":""}</p><h2>${TYPE_NAME[plan.type]}</h2>${plan.type==="mix"?`<p class="small muted">A random mix of legs and upper body, just for today.</p>`:""}</div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px"><span class="pill ${plan.type}">about ${plan.est} min</span>${plan.type==="mix" && !started?`<button class="linkbtn" data-act="reshuffle">Shuffle again</button>`:""}</div>
     </div>
-    ${plan.type==="recovery"?"":`<div class="coachnote"><b>${esc(e.label)} energy:</b> ${esc(e.note)} Rest ${e.rest>=120?"2 min":e.rest+" sec"} between sets. Aim for ${e.effort} effort.</div>`}
+    ${plan.type==="recovery"||inProgress?"":`<div class="coachnote"><b>${esc(e.label)} energy:</b> ${esc(e.note)} Rest ${e.rest>=120?"2 min":e.rest+" sec"} between sets. Aim for ${e.effort} effort.</div>`}
     <div class="preview">${rows}</div>
-    <button class="btn full start" data-act="live-start">${started?`Resume workout · ${n} of ${plan.all.length} started`:plan.type==="recovery"?"Start recovery":"Start workout"}</button>
+    <button class="btn full start" data-act="live-start">${inProgress?(n?`Resume workout · ${n} of ${plan.all.length} started`:"Resume workout"):plan.type==="recovery"?"Start recovery":"Start workout"}</button>
   </section>`;
 }
 
@@ -1384,16 +1388,29 @@ function starsRow(){
 function endLive(){ ui.live = false; try{ localStorage.removeItem("coach.live"); }catch(e){} }
 setInterval(()=>{ const c = document.getElementById("live-clock"); if(c) c.textContent = fmtClock(liveElapsed()); }, 1000);
 
+function rxText(i){
+  if(!["lower","upper","light"].includes(i.type)) return "Walk, stretch and mobility. Rest is where this week's strength gets built.";
+  if(i.ph.deload) return i.ph.cue;
+  if(i.type==="light") return "Two easy sets on each machine at about 80%. It won't lower your numbers.";
+  if(i.ph.mainSets===i.ph.sets && i.ph.main.lo===i.ph.acc.lo) return `${i.ph.sets} × ${i.ph.main.lo}–${i.ph.main.hi} reps on every machine. ${i.ph.cue}`;
+  return `${i.ph.mainSets} × ${i.ph.main.lo}–${i.ph.main.hi} on the main lifts, ${i.ph.sets} × ${i.ph.acc.lo}–${i.ph.acc.hi} on the rest. ${i.ph.cue}`;
+}
+/* Once today's workout is started or saved: a read-only look at the next session */
+function nextUpCard(i){
+  return `<section class="focus-card ${i.type}" aria-label="Next up">
+    <p class="eyebrow">Next up</p>
+    <h2 class="focus-title" style="font-size:26px">${esc(TYPE_NAME[i.type])}</h2>
+    <p class="focus-where">Block ${i.block} · Week ${i.week} of ${BLOCK.length} · ${esc(i.ph.phase)}</p>
+    <p class="small">${esc(rxText(i))}</p>
+    <p class="small muted">Waiting for your next gym day.</p>
+  </section>`;
+}
 function focusCard(plan){
   const C = plan.C, i = C.info, planned = C.next, off = C.mode!=="plan";
   const head = C.trainedToday && !off ? "Next up" : off ? "Your pick today" : "Your focus for today";
   const where = i.type==="mix" ? "Just for fun" : `Block ${i.block} · Week ${i.week} of ${BLOCK.length} · ${i.ph.phase}`;
   const lifts = ["lower","upper","light"].includes(i.type);
-  const rx = !lifts ? "Walk, stretch and mobility. Rest is where this week's strength gets built."
-    : i.ph.deload ? i.ph.cue
-    : i.type==="light" ? "Two easy sets on each machine at about 80%. It won't lower your numbers."
-    : i.ph.mainSets===i.ph.sets && i.ph.main.lo===i.ph.acc.lo ? `${i.ph.sets} × ${i.ph.main.lo}–${i.ph.main.hi} reps on every machine. ${i.ph.cue}`
-    : `${i.ph.mainSets} × ${i.ph.main.lo}–${i.ph.main.hi} on the main lifts, ${i.ph.sets} × ${i.ph.acc.lo}–${i.ph.acc.hi} on the rest. ${i.ph.cue}`;
+  const rx = rxText(i);
   const ids = plan.all.map(x=>x.id);
   const goal = lifts ? DX.goals.find(g=>g.machine && ids.includes(g.machine)) : null;
   const goalLine = goal ? `<p class="small focus-goal"><span class="eyebrow">Working toward</span> ${esc(goal.name)} lb · ${goal.next-goal.val} lb to go</p>` : "";
