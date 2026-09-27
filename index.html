@@ -249,6 +249,8 @@ body.live{padding-top:0;padding-bottom:40px}
 .setedit .row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
 .setedit input{width:80px}
 .cheer{font-family:var(--display);font-style:italic;font-size:17px;color:var(--rose);line-height:1.35}
+.flow.timed .steppers,.flow.timed:not(.held) .logbtns,.flow.timed:not(.held) .logset,.flow.timed:not(.held) > .lbl,.flow.timed:not(.held) .hint{display:none}
+.side-cue{margin:0;font-size:15px}
 .flow.holding .steppers,.flow.holding .logbtns,.flow.holding .logset,.flow.holding > .lbl,.flow.holding .hint,.flow.holding .logged,.flow.holding .target{display:none}
 .timer{display:flex;flex-direction:column;align-items:center;gap:12px;padding:6px 0 4px;text-align:center}
 .ring{position:relative;width:170px;height:170px}
@@ -1178,27 +1180,45 @@ function setText(id,t){ const el=document.getElementById(id); if(el && el.textCo
 const C_RING = 2*Math.PI*78;
 function setArc(id,frac){ const el=document.getElementById(id); if(el) el.setAttribute("stroke-dashoffset", String(C_RING*(1-frac))); }
 /* ---------- hold timer for timed moves (planks) ----------
-   Start → 5-second countdown to get into position → counts up, chimes at the goal.
-   Side moves time one side, then the other; the weaker side is what gets logged. */
+   Start → 5-second countdown to get into position → the timer runs, chimes at the goal.
+   Forearm plank: one hold, keeps counting past the goal until Stop.
+   Side plank: left side first; at the goal (or End early) it moves to the right side,
+   and the weaker side is what gets logged. The time comes only from the timer. */
 const HOLD_READY = 5;
+const SIDE_NAME = ["","Left side","Right side"];
 function holdElapsed(h){ return Math.max(0, Math.floor((Date.now()-h.t0)/1000)); }
 function holdTimer(id, d){
   const h = ui.hold && ui.hold.id===id ? ui.hold : null, goal = d.target.reps, side = LIB[id].perSide;
+  if(!h && d.heldNow!=null) return `<div class="timer hold">
+      <div class="ring">${ringSVG("hold-arc", Math.min(1, d.heldNow/goal))}<div class="clock"><b>${fmtClock(d.heldNow)}</b><span>${d.heldNow>=goal?"Goal hit":"Held"}</span></div></div>
+      <button class="linkbtn" data-act="hold-redo" data-id="${id}">Redo this set</button>
+    </div>`;
   if(!h) return `<div class="timer hold">
       <div class="ring">${ringSVG("hold-arc", 0)}<div class="clock"><b>${fmtClock(goal)}</b><span>Goal${side?" each side":""}</span></div></div>
+      ${side?`<p class="side-cue">Start on your <b>left side</b>.</p>`:""}
       <button class="btn" data-act="hold-start" data-id="${id}">Start timer</button>
       <p class="small muted">You get ${HOLD_READY} seconds to get into position.</p>
     </div>`;
   if(h.phase==="ready") return `<div class="timer hold">
-      <div class="ring">${ringSVG("hold-arc", 0)}<div class="clock"><b id="hold-clock">${HOLD_READY-holdElapsed(h)}</b><span>${h.side===2?"Other side":"Get set"}</span></div></div>
+      <div class="ring">${ringSVG("hold-arc", 0)}<div class="clock"><b id="hold-clock">${HOLD_READY-holdElapsed(h)}</b><span>Get set</span></div></div>
+      ${side?`<p class="side-cue"><b>${SIDE_NAME[h.side]}</b>${h.side===2?`. Left side: ${h.s1} sec.`:""}</p>`:""}
       <button class="btn ghost sm" data-act="hold-cancel">Cancel</button>
     </div>`;
   const el = holdElapsed(h);
   return `<div class="timer hold">
-      <div class="ring">${ringSVG("hold-arc", Math.min(1, el/goal))}<div class="clock"><b id="hold-clock">${fmtClock(el)}</b><span id="hold-lbl">${el>=goal?"Goal reached":side?(h.side===1?"First side":"Second side"):"Hold"}</span></div></div>
-      <button class="btn" data-act="hold-stop" data-id="${id}">${side && h.side===1 ? "Switch sides" : "Stop"}</button>
+      <div class="ring">${ringSVG("hold-arc", Math.min(1, el/goal))}<div class="clock"><b id="hold-clock">${fmtClock(el)}</b><span id="hold-lbl">${el>=goal?"Goal reached":side?SIDE_NAME[h.side]:"Hold"}</span></div></div>
+      ${side?`<p class="side-cue"><b>${SIDE_NAME[h.side]}</b></p>`:""}
+      <button class="btn" data-act="hold-stop" data-id="${id}">${side ? (h.side===1 ? "End left side" : "End right side") : "Stop"}</button>
     </div>`;
 }
+function holdFinish(h, secs){
+  const d = draft.entries[h.id];
+  const held = h.s1!=null ? Math.min(h.s1, secs) : secs;
+  d.heldNow = held; d.inReps = held; d.touched = true; ui.hold = null;
+  ui.cheer = {id:h.id, text: h.s1!=null ? `Left ${h.s1} sec, right ${secs} sec. Logging ${held}, the weaker side.` : `Held ${held} sec.${held>=d.target.reps?" Goal hit.":""}`};
+  persistDraft(); render();
+}
+function holdSwitch(h, secs){ ui.hold = {id:h.id, phase:"ready", t0:Date.now(), side:2, s1:secs}; render(); }
 function holdTick(){
   const h = ui.hold; if(!h){ clearInterval(holdTick.t); holdTick.t=null; return; }
   const el = holdElapsed(h);
@@ -1210,7 +1230,11 @@ function holdTick(){
   }
   const goal = draft.entries[h.id].target.reps;
   setText("hold-clock", fmtClock(el)); setArc("hold-arc", Math.min(1, el/goal));
-  if(el>=goal && !h.chimed){ h.chimed=true; chime(); setText("hold-lbl","Goal reached"); }
+  if(el>=goal && !h.chimed){
+    h.chimed=true; chime();
+    if(LIB[h.id].perSide){ if(h.side===1) holdSwitch(h, el); else holdFinish(h, el); }
+    else setText("hold-lbl","Goal reached");
+  }
 }
 function beep(freq){
   try{ unlockAudio(); const o=audioCtx.createOscillator(), g=audioCtx.createGain(); o.type="sine"; o.frequency.value=freq;
@@ -1559,7 +1583,8 @@ function flowView(it, plan, d){
       <button class="btn full" data-act="finish-ex" data-id="${id}">Finish ${esc(ex.name)}</button>
       <div class="btnrow" style="justify-content:flex-start"><button class="linkbtn" data-act="add-set" data-id="${id}">Add another set</button></div>`;
   }
-  return `<div class="flow${ui.hold && ui.hold.id===id ? " holding" : ""}">${body}</div>`;
+  const timed = LIB[id].timed ? ` timed${d.heldNow!=null?" held":""}` : "";
+  return `<div class="flow${timed}${ui.hold && ui.hold.id===id ? " holding" : ""}">${body}</div>`;
 }
 function lastSessionSets(id){
   for(const s of sessions){ if(s.date===TODAY) continue; const x=(s.exercises||[]).find(y=>y.id===id && (y.sets||[]).length); if(x) return x.sets; }
@@ -1792,13 +1817,10 @@ document.addEventListener("click", async ev=>{
   else if(a==="hold-cancel"){ ui.hold=null; render(); }
   else if(a==="hold-stop"){
     const h = ui.hold; if(!h) return;
-    const secs = holdElapsed(h), d = draft.entries[h.id];
-    if(LIB[h.id].perSide && h.side===1){ ui.hold = {id:h.id, phase:"ready", t0:Date.now(), side:2, s1:secs}; render(); return; }
-    const held = h.s1!=null ? Math.min(h.s1, secs) : secs;
-    d.inReps = held; d.touched = true; ui.hold = null;
-    ui.cheer = {id:h.id, text: h.s1!=null ? `First side ${h.s1} sec, second side ${secs} sec. Logging ${held}, the weaker side.` : `Held ${held} sec.${held>=d.target.reps?" Goal hit.":""}`};
-    persistDraft(); render();
+    const secs = holdElapsed(h);
+    if(LIB[h.id].perSide && h.side===1) holdSwitch(h, secs); else holdFinish(h, secs);
   }
+  else if(a==="hold-redo"){ draft.entries[id].heldNow = null; ui.cheer = null; persistDraft(); render(); }
   else if(a==="pick-grade"){ readInputs(id); draft.entries[id].pick = t.dataset.g; persistDraft(); render(); }
   else if(a==="walk-check"){ livePut({walkDone:!liveGet().walkDone}); render(); }
   else if(a==="rate"){ const v=Number(t.dataset.v); readNotes(); livePut({rating: liveGet().rating===v ? 0 : v}); render(); }
@@ -1806,7 +1828,7 @@ document.addEventListener("click", async ev=>{
     readInputs(id);
     const d = draft.entries[id];
     const set = {w:LIB[id].bw?0:Number(d.inW)||0, reps:Number(d.inReps)||0, grade:t.dataset.g};
-    d.sets.push(set); d.touched = true; d.pick = "right"; carryLast(d);
+    d.sets.push(set); d.touched = true; d.pick = "right"; d.heldNow = null; carryLast(d);
     const n = d.sets.length, total = Number(t.dataset.total);
     const prev = lastSessionSets(id), p = prev && prev[n-1];
     let text;
