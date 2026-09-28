@@ -1824,8 +1824,8 @@ ${programView()}
     ${ui.dataMsg?`<p class="status" role="status">${esc(ui.dataMsg)}</p>`:""}
     ${ui.exportText?`<div class="field"><span class="lbl">Your backup (copy and save it somewhere safe)</span><textarea id="export-text" readonly style="min-height:120px;font-size:12px">${esc(ui.exportText)}</textarea><div class="datarow"><button class="btn sm" data-act="copy-export">Copy</button><button class="btn ghost sm" data-act="close-export">Close</button></div></div>`:""}
     ${ip?`<div class="confirm" style="flex-direction:column;align-items:flex-start">
-      <span class="small"><b>Found ${ip.sessions.length} workouts</b>${ip.sessions.length?` from ${fmtFull(ip.first)} to ${fmtFull(ip.last)}`:""}. ${ip.newCount} are new to this coach.</span>
-      <div class="datarow"><button class="btn sm" data-act="import-merge">Add ${ip.newCount} new workouts</button><button class="btn ghost sm" data-act="import-replace">Replace everything</button><button class="linkbtn" data-act="import-cancel">Cancel</button></div>
+      <span class="small"><b>Found ${ip.sessions.length} workout${ip.sessions.length===1?"":"s"}</b>${ip.sessions.length ? (ip.first===ip.last ? ` from ${fmtFull(ip.first)}` : ` from ${fmtFull(ip.first)} to ${fmtFull(ip.last)}`) : ""}. ${ip.newCount===0 ? "You already have all of them." : ip.newCount===ip.sessions.length ? (ip.newCount===1 ? "It's new to this coach." : "All are new to this coach.") : `${ip.newCount} ${ip.newCount===1?"is":"are"} new to this coach.`}</span>
+      <div class="datarow"><button class="btn sm" data-act="import-merge">Add ${ip.newCount} new workout${ip.newCount===1?"":"s"}</button><button class="btn ghost sm" data-act="import-replace">Replace everything</button><button class="linkbtn" data-act="import-cancel">Cancel</button></div>
       ${ip.confirmReplace?`<div class="datarow"><span class="small"><b>This deletes workouts that aren't in the file.</b></span><button class="btn danger sm" data-act="import-replace-yes">Yes, replace</button></div>`:""}
     </div>`:""}
   </div>
