@@ -155,6 +155,7 @@ body.live{padding-top:0;padding-bottom:40px}
 .lb-t b{font-family:var(--display);font-weight:400;font-size:18px}
 .lb-t span{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600}
 .lb-c{justify-self:end;font-size:15px;font-weight:600}
+.build{margin:8px 0 0;text-align:center;font-size:10.5px;letter-spacing:.06em;color:var(--muted);opacity:.7}
 .prog{border:1px solid var(--line);background:var(--surface)}
 .pw{display:grid;grid-template-columns:62px 1fr auto;align-items:center;gap:10px;padding:10px 14px;border-top:1px solid var(--hair)}
 .pw:first-child{border-top:0}
@@ -436,6 +437,9 @@ td.r,th.r{text-align:right}
 </div></nav>
 
 <script>
+/* Build stamp: rewritten on every commit by .githooks/pre-commit (date + git revision number) */
+const BUILD = {date:"2026-09-27", rev:29};
+
 /* ---------- program library: Lifetime Plymouth machines + floor core ---------- */
 const DB_SIZES = [3,5,8,10,12,15,17.5,20,25,30,35,40];
 const LIB = {
@@ -1834,6 +1838,7 @@ ${programView()}
   <div class="tbl-wrap wtable"><table><thead><tr><th>Exercise</th><th class="r">Weight (lb)</th><th class="r">Reps</th></tr></thead><tbody>
   ${Object.keys(LIB).filter(id=>SWAP_GROUPS.some(g=>useFor(g[0])===id) || DER.W[id]).map(id=>`<tr><td>${esc(LIB[id].name)}${LIB[id].db?` <span class="muted small">dumbbell</span>`:""}</td><td class="r">${LIB[id].bw?`<span class="muted small">—</span>`:`<input id="ww-${id}" type="number" step="any" min="0" placeholder="${LIB[id].start}" value="${DER.W[id]?.w||""}" data-act="ww" data-id="${id}" aria-label="${esc(LIB[id].name)} weight">`}</td><td class="r"><input id="wr-${id}" type="number" min="1" max="90" placeholder="${range(id).start}" value="${DER.W[id]?.reps||""}" data-act="wr" data-id="${id}" aria-label="${esc(LIB[id].name)} ${LIB[id].timed?"seconds":"reps"}" style="width:58px"></td></tr>`).join("")}
   </tbody></table></div>
+  <p class="build">Build ${BUILD.date} · rev ${BUILD.rev}</p>
   </div>`;
 }
 

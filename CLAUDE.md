@@ -61,6 +61,10 @@ A personal, phone-first workout coach for machine training at Lifetime (Plymouth
 ## Likely next steps
 1. Winter, spring and summer flower lists (only fall `MOODS` exist so far).
 
+## Build stamp
+- `const BUILD = {date, rev}` near the top of the script shows as a tiny "Build 2026-09-27 · rev 29" line at the bottom of My plan.
+- `.githooks/pre-commit` rewrites it on every commit: today's date and the git commit count (including the commit being made). It's enabled with `git config core.hooksPath .githooks`; run that once in any fresh clone.
+
 ## Working here
 - There's no build step. Open `index.html` in a browser. For testing, serve the folder (`python3 -m http.server`); the service worker only runs over http(s).
 - Keep it one file unless there's a good reason to split it.
