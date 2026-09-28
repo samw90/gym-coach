@@ -1478,10 +1478,10 @@ function renderLive(plan){
       <label class="eyebrow" for="sess-note" style="margin-top:6px">Notes</label>
       <textarea id="sess-note" placeholder="Anything to remember next week? e.g. leg press seat on 6, knees felt great">${esc(draft.note||"")}</textarea>
       <button class="btn ghost full" data-act="save" ${doneN?"":"disabled"}>Save workout${doneN?` · ${doneN} of ${plan.all.length} exercises`:""}</button>
-      ${ui.confirmFinish && allDone
-        ? `<div class="confirm soft"><span class="small"><b>Finish this workout?</b> It'll be marked complete for today. You can still edit it from History.</span><button class="btn sm" data-act="finish-yes">Yes, finish</button><button class="btn ghost sm" data-act="finish-no">Not yet</button></div>`
-        : `<button class="btn ghost full" data-act="finish-workout" ${allDone?"":"disabled"}>Finish workout</button>`}
-      <p class="muted small" style="text-align:center">${!doneN ? "Tap an exercise to start your first set." : allDone ? "Everything's done. Finish to close out today." : "Save to come back to it later. Finish unlocks once every exercise is done."}</p>
+      ${ui.confirmFinish && doneN
+        ? `<div class="confirm soft"><span class="small"><b>Finish this workout?</b> ${allDone ? "" : `You've done ${doneN} of ${plan.all.length} exercises. `}It'll be marked complete for today. You can still edit it from History.</span><button class="btn sm" data-act="finish-yes">Yes, finish</button><button class="btn ghost sm" data-act="finish-no">Not yet</button></div>`
+        : `<button class="btn ghost full" data-act="finish-workout" ${doneN?"":"disabled"}>Finish workout</button>`}
+      <p class="muted small" style="text-align:center">${!doneN ? "Tap an exercise to start your first set." : allDone ? "Everything's done. Finish to close out today." : "Save to come back to it later, or finish now if you're done for the day."}</p>
     </div>`;
   }
   out += `</section></div>`;
