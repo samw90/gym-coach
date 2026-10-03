@@ -185,6 +185,10 @@ body.live{padding-top:0;padding-bottom:40px}
 .ph-viewer{position:fixed;inset:0;z-index:20;background:rgba(10,8,8,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:20px}
 .ph-viewer img{max-width:100%;max-height:82vh;object-fit:contain}
 .ph-viewer p{color:#EEE6DC;font-size:13px;margin:0}
+.eq-link{align-self:flex-start;padding:0;font-size:12.5px;color:var(--muted)}
+.eq-edit{display:flex;flex-direction:column;gap:9px;padding:12px;border:1px dashed var(--line);background:var(--surface)}
+.eq-edit .chip{min-width:0}
+.eq-base input{width:110px}
 .prog{border:1px solid var(--line);background:var(--surface)}
 .pw{display:grid;grid-template-columns:62px 1fr auto;align-items:center;gap:10px;padding:10px 14px;border-top:1px solid var(--hair)}
 .pw:first-child{border-top:0}
@@ -467,7 +471,7 @@ td.r,th.r{text-align:right}
 
 <script>
 /* Build stamp: rewritten on every commit by .githooks/pre-commit (date + git revision number) */
-const BUILD = {date:"2026-10-03", rev:30};
+const BUILD = {date:"2026-10-03", rev:31};
 
 /* ---------- program library: Lifetime Plymouth machines + floor core ---------- */
 const DB_SIZES = [3,5,8,10,12,15,17.5,20,25,30,35,40];
@@ -650,9 +654,13 @@ const esc = s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":
 const r5 = n=>Math.max(5, Math.round(n/5)*5);
 const rdb = n=>DB_SIZES.reduce((a,b)=>Math.abs(b-n)<Math.abs(a-n)?b:a);
 const dbStep = (w,dir)=>{ const i=DB_SIZES.indexOf(rdb(w)); return DB_SIZES[Math.min(DB_SIZES.length-1,Math.max(0,i+dir))]; };
-const roundFor = (id,n)=>LIB[id].db ? rdb(n) : r5(n);
-const stepUp = (id,w)=>LIB[id].db ? dbStep(w,1) : w+LIB[id].step;
-const stepDown = (id,w)=>LIB[id].db ? dbStep(w,-1) : Math.max(5,w-LIB[id].step);
+/* Each machine's real weights: state.equip[id] = {step, base} (e.g. 10 lb steps starting at 10).
+   Without a setting, machines round to 5 lb. Halfway between two plates rounds down. */
+const equipOf = id=>(state.equip && state.equip[id] && !LIB[id].db && !LIB[id].bw) ? state.equip[id] : null;
+const snapEq = (q,n)=>Math.max(q.base, q.base + Math.ceil((n-q.base)/q.step - 0.5 - 1e-9)*q.step);
+const roundFor = (id,n)=>{ const q = equipOf(id); return LIB[id].db ? rdb(n) : q ? +snapEq(q,n).toFixed(2) : r5(n); };
+const stepUp = (id,w)=>{ const q = equipOf(id); return LIB[id].db ? dbStep(w,1) : q ? +(snapEq(q,w)+q.step).toFixed(2) : w+LIB[id].step; };
+const stepDown = (id,w)=>{ const q = equipOf(id); return LIB[id].db ? dbStep(w,-1) : q ? +Math.max(q.base, snapEq(q,w)-q.step).toFixed(2) : Math.max(5,w-LIB[id].step); };
 const pad = n=>String(n).padStart(2,"0");
 const dkey = d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 const parseKey = k=>{const [y,m,d]=k.split("-").map(Number); return new Date(y,m-1,d);};
@@ -1094,7 +1102,7 @@ function prescribe(id, e){
   if(ex.bw) return {w:0, reps:st.reps || rg.start, bw:true, tag:"", msg:lastMsg(id, st)};
   if(!st.w) return {w:roundFor(id, ex.start*Math.min(1,e.mult)), reps:rg.start, tag:"First try", cls:"new", fresh:true, msg:null};
   // a new rep range converts your working weight through estimated strength (Epley)
-  let base = st.w, reps = st.reps || rg.start, converted = false;
+  let base = roundFor(id, st.w), reps = st.reps || rg.start, converted = false;
   const fits = reps>=rg.lo && reps<=rg.hi;
   if(!fits || (st.rg && (st.rg.lo!==rg.lo || st.rg.hi!==rg.hi))){
     const e1 = st.w*(1+(st.reps||10)/30);
@@ -1671,6 +1679,7 @@ function flowView(it, plan, d){
         ${ex.bw?"":`<div class="stepper"><span class="lbl">Weight · ${u}</span><div class="ctl"><button type="button" data-act="adj" data-f="w" data-d="-1" data-id="${id}" aria-label="Less weight">−</button><input id="in-w-${id}" type="text" inputmode="decimal" autocomplete="off" value="${esc(d.inW)}" data-act="inW" data-id="${id}" aria-label="Weight used"><button type="button" data-act="adj" data-f="w" data-d="1" data-id="${id}" aria-label="More weight">+</button></div></div>`}
         <div class="stepper"><span class="lbl">${ex.timed?"Seconds held":"Reps done"}</span><div class="ctl"><button type="button" data-act="adj" data-f="r" data-d="-1" data-id="${id}" aria-label="Fewer">−</button><input id="in-r-${id}" type="text" inputmode="numeric" autocomplete="off" value="${esc(d.inReps)}" data-act="inR" data-id="${id}" aria-label="${ex.timed?"Seconds held":"Reps done"}"><button type="button" data-act="adj" data-f="r" data-d="1" data-id="${id}" aria-label="More">+</button></div></div>
       </div>
+      ${!ex.bw && !ex.db ? equipLine(id) : ""}
       <span class="lbl">Set ${n+1} · how did it feel?</span>
       <div class="logbtns" role="radiogroup">${["easy","right","hard"].map(g=>`<button data-act="pick-grade" data-g="${g}" data-id="${id}" role="radio" aria-pressed="${(d.pick||"right")===g}" aria-checked="${(d.pick||"right")===g}">${GRADE[g]}</button>`).join("")}</div>
       <button class="btn full logset" data-act="log" data-g="${d.pick||"right"}" data-id="${id}" data-rest="${it.rest}" data-total="${total}">Log set ${n+1}</button>
@@ -2089,6 +2098,28 @@ async function doSwap(orig, plan){
   if(next===orig) delete state.swaps[orig]; else state.swaps[orig] = next;
   await store.saveState();
 }
+/* "Weights don't match this machine?" → tell the coach the stack's steps and lightest weight */
+function equipLine(id){
+  const q = equipOf(id);
+  if(ui.equipEdit!==id) return `<button class="linkbtn eq-link" data-act="eq-open" data-id="${id}">${q ? `This machine: ${q.step} lb steps from ${q.base} lb · change` : "Weights don't match this machine?"}</button>`;
+  const step = ui.eqStep || (q && q.step) || 10, base = ui.eqBase!=null ? ui.eqBase : (q ? q.base : step);
+  const opts = [2.5,5,10,15,20,25];
+  const sample = []; for(let w=base; sample.length<5; w+=step) sample.push(+w.toFixed(2));
+  return `<div class="eq-edit">
+    <span class="lbl">This machine goes up by</span>
+    <div class="chips">${opts.map(o=>`<button class="chip" data-act="eq-step" data-v="${o}" aria-pressed="${step===o}">${o} lb</button>`).join("")}</div>
+    <label class="field eq-base"><span class="lbl">Lightest weight on the stack</span><input id="eq-base" type="text" inputmode="decimal" value="${esc(base)}"></label>
+    <p class="small muted">So it has ${sample.join(", ")}… lb. The coach will only suggest these.</p>
+    <div class="btnrow" style="justify-content:flex-start"><button class="btn sm" data-act="eq-save" data-id="${id}">Save</button><button class="btn ghost sm" data-act="eq-cancel">Cancel</button>${q?`<button class="linkbtn" data-act="eq-reset" data-id="${id}">Back to 5 lb steps</button>`:""}</div>
+  </div>`;
+}
+/* after changing a machine's weights, move today's target and the stepper onto real plates */
+function resnapEntry(id){
+  const d = draft && draft.entries[id]; if(!d) return;
+  d.target = Object.assign({}, d.target, {w:roundFor(id, d.target.w)});
+  if(!d.sets.length) d.inW = d.target.w; else d.inW = roundFor(id, d.inW);
+  persistDraft();
+}
 /* the next set starts from the last one you logged */
 function carryLast(d){ const l = d.sets[d.sets.length-1]; if(l){ d.inW = Number(l.w)||0; d.inReps = Number(l.reps)||0; } }
 function readInputs(id){
@@ -2100,7 +2131,7 @@ function readInputs(id){
 function lastBackup(){ try{ return localStorage.getItem("coach.lastBackup"); }catch(e){ return null; } }
 function backupDaysAgo(){ const d=lastBackup(); return d ? Math.floor((new Date(TODAY)-new Date(d))/864e5) : Infinity; }
 function markBackup(){ try{ localStorage.setItem("coach.lastBackup", TODAY); }catch(e){} }
-function exportData(){ return JSON.stringify({app:"cassie-gym-coach", version:3, exportedAt:new Date().toISOString(), manual:state.manual||{}, swaps:state.swaps||{}, inbody:state.inbody||[], sessions}, null, 2); }
+function exportData(){ return JSON.stringify({app:"cassie-gym-coach", version:3, exportedAt:new Date().toISOString(), manual:state.manual||{}, swaps:state.swaps||{}, equip:state.equip||{}, inbody:state.inbody||[], sessions}, null, 2); }
 
 document.addEventListener("pointerdown", unlockAudio, {once:true});
 $("#week").addEventListener("scroll", ()=>{ clearTimeout(labelWeek.t); labelWeek.t = setTimeout(labelWeek, 60); }, {passive:true});
@@ -2153,6 +2184,16 @@ document.addEventListener("click", async ev=>{
   else if(a==="ph-close"){ ui.phView = null; render(); }
   else if(a==="ph-del"){ ui.phDel = id; render(); }
   else if(a==="ph-del-yes"){ await photos.del(id); ui.phDel = null; render(); }
+  else if(a==="eq-open"){ ui.equipEdit = id; ui.eqStep = null; ui.eqBase = null; render(); }
+  else if(a==="eq-step"){ const b = document.getElementById("eq-base"); ui.eqBase = b ? (parseFloat(b.value)||null) : null; ui.eqStep = Number(t.dataset.v); if(ui.eqBase==null) ui.eqBase = ui.eqStep; render(); }
+  else if(a==="eq-cancel"){ ui.equipEdit = null; render(); }
+  else if(a==="eq-save"){
+    const q0 = equipOf(id), step = ui.eqStep || (q0 && q0.step) || 10;
+    const b = parseFloat((document.getElementById("eq-base")||{}).value); const base = isNaN(b) || b<=0 ? step : b;
+    state.equip = Object.assign({}, state.equip||{}, {[id]:{step, base}}); await store.saveState();
+    ui.equipEdit = null; resnapEntry(id); render();
+  }
+  else if(a==="eq-reset"){ state.equip = Object.assign({}, state.equip||{}); delete state.equip[id]; await store.saveState(); ui.equipEdit = null; resnapEntry(id); render(); }
   else if(a==="hold-start"){ unlockAudio(); keepAwake(); ui.rest=null; ui.hold={id, phase:"ready", t0:Date.now(), side:1}; if(!holdTick.t) holdTick.t=setInterval(holdTick, 200); render(); }
   else if(a==="hold-cancel"){ ui.hold=null; render(); }
   else if(a==="hold-stop"){
@@ -2290,6 +2331,7 @@ document.addEventListener("click", async ev=>{
       if(replace){ for(const s of [...sessions]) if(!incoming.has(s.id)){ await store.deleteSession(s.id); removed++; } }
       if(replace) state.manual = ip.manual||{}; else state.manual = Object.assign({}, ip.manual||{}, state.manual||{});
       if(ip.swaps) state.swaps = replace ? ip.swaps : Object.assign({}, ip.swaps, state.swaps||{});
+      if(ip.equip) state.equip = replace ? ip.equip : Object.assign({}, ip.equip, state.equip||{});
       if(ip.inbody){ if(replace) state.inbody = ip.inbody; else { const have = new Set((state.inbody||[]).map(x=>x.date)); state.inbody = [...(state.inbody||[]), ...ip.inbody.filter(x=>!have.has(x.date))].sort((a,b)=>a.date<b.date?-1:1); } }
       await store.saveState(); markBackup();
       ui.dataMsg = replace ? `Replaced: ${ip.sessions.length} workouts now in your coach${removed?`, ${removed} removed`:""}.` : `Imported ${added} new workout${added===1?"":"s"}.`;
@@ -2327,7 +2369,7 @@ document.addEventListener("change", async ev=>{
       const list = data.sessions.filter(s=>s && s.id && s.date && /^\d{4}-\d{2}-\d{2}$/.test(s.date)).map(s=>{ const {id,...rest}=s; return Object.assign({id:String(id).replace(/[^A-Za-z0-9_\-.~:@+]/g,"-")}, rest); });
       const dates = list.map(s=>s.date).sort();
       const have = new Set(sessions.map(s=>s.id));
-      ui.importPreview = {sessions:list, manual:(data.manual && typeof data.manual==="object")?data.manual:{}, swaps:(data.swaps && typeof data.swaps==="object")?data.swaps:null, inbody:Array.isArray(data.inbody)?data.inbody.filter(x=>x && /^\d{4}-\d{2}-\d{2}$/.test(x.date)):null, first:dates[0], last:dates[dates.length-1], newCount:list.filter(s=>!have.has(s.id)).length};
+      ui.importPreview = {sessions:list, manual:(data.manual && typeof data.manual==="object")?data.manual:{}, swaps:(data.swaps && typeof data.swaps==="object")?data.swaps:null, equip:(data.equip && typeof data.equip==="object")?data.equip:null, inbody:Array.isArray(data.inbody)?data.inbody.filter(x=>x && /^\d{4}-\d{2}-\d{2}$/.test(x.date)):null, first:dates[0], last:dates[dates.length-1], newCount:list.filter(s=>!have.has(s.id)).length};
       ui.dataMsg = null;
     }catch(e){ ui.importPreview=null; ui.dataMsg="That file isn't a gym coach backup. Choose a .json file you exported from here."; }
     t.value=""; render(); return;
