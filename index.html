@@ -185,6 +185,8 @@ body.live{padding-top:0;padding-bottom:40px}
 .ph-viewer{position:fixed;inset:0;z-index:20;background:rgba(10,8,8,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:20px}
 .ph-viewer img{max-width:100%;max-height:82vh;object-fit:contain}
 .ph-viewer p{color:#EEE6DC;font-size:13px;margin:0}
+.stack-card{display:flex;flex-direction:column;gap:9px;padding:12px;border:1px solid var(--line);background:var(--surface)}
+.stack-card p{margin:0}
 .eq-link{align-self:flex-start;padding:0;font-size:12.5px;color:var(--muted)}
 .eq-edit{display:flex;flex-direction:column;gap:9px;padding:12px;border:1px dashed var(--line);background:var(--surface)}
 .eq-edit .chip{min-width:0}
@@ -471,7 +473,7 @@ td.r,th.r{text-align:right}
 
 <script>
 /* Build stamp: rewritten on every commit by .githooks/pre-commit (date + git revision number) */
-const BUILD = {date:"2026-10-03", rev:31};
+const BUILD = {date:"2026-10-03", rev:32};
 
 /* ---------- program library: Lifetime Plymouth machines + floor core ---------- */
 const DB_SIZES = [3,5,8,10,12,15,17.5,20,25,30,35,40];
@@ -1345,7 +1347,7 @@ function startRest(id, secs){
 /* Week strip: one page per Monday–Sunday week, swipeable. Opens on this week; goes back to the
    first workout (at least 8 weeks) and 4 weeks ahead. The label follows the week in view. */
 const WEEKS_AHEAD = 4;
-let weekHtml = "", weekPages = [];
+let weekHtml = "", weekPages = [], weekPlaced = false;
 function weekPagesFrom(){
   const cur = weekStart(today);
   const first = sessions.length ? weekStart(parseKey(sessions[sessions.length-1].date)) : cur;
@@ -1366,9 +1368,10 @@ function renderWeekStrip(){
     }
     return `<div class="wk" data-wk="${dkey(ws)}">${days}</div>`;
   }).join("");
-  if(html!==weekHtml){
+  if(html!==weekHtml || !weekPlaced){
     const keep = ui.weekView;
-    el.innerHTML = html; weekHtml = html;
+    if(html!==weekHtml){ el.innerHTML = html; weekHtml = html; }
+    weekPlaced = el.clientWidth>0;   // hidden (workout mode): place it once it's visible again
     const i = Math.max(0, weekPages.findIndex(d=>dkey(d)===(keep||dkey(weekStart(today)))));
     el.scrollLeft = i*el.clientWidth;
     requestAnimationFrame(()=>{ el.scrollLeft = i*el.clientWidth; });
@@ -1377,6 +1380,7 @@ function renderWeekStrip(){
 }
 function labelWeek(){
   const el = $("#week");
+  if(!el.clientWidth && weekPages.length){ return; }
   const i = el.clientWidth ? Math.round(el.scrollLeft/el.clientWidth) : weekPages.findIndex(d=>dkey(d)===dkey(weekStart(today)));
   const ws = weekPages[Math.max(0,Math.min(weekPages.length-1,i))] || weekStart(today);
   const key = dkey(ws), curKey = dkey(weekStart(today));
@@ -1671,7 +1675,7 @@ function flowView(it, plan, d){
       </div>${setList(id,d)}`;
   } else if(n<total){
     const prev = n>0 && prevSets && prevSets[n] ? `Last time set ${n+1}: ${ex.bw?"":prevSets[n].w+" "+u+" × "}${prevSets[n].reps}` : "";
-    body = `${n===0?`<p class="cue">${esc(ex.cue)}</p>`:""}${cheer}
+    body = `${n===0 && !ex.bw && !ex.db && !(state.equip && state.equip[id]) ? stackPrompt(id) : ""}${n===0?`<p class="cue">${esc(ex.cue)}</p>`:""}${cheer}
       <div class="sethead"><h3>Set ${n+1} <span class="muted" style="font-size:16px">of ${total}</span></h3>${ticks}</div>
       <p class="target">Goal: <b>${ex.bw?"":`${d.target.w} ${u} × `}${d.target.reps}</b> ${repWord(id)}${perSide(id)}${prev?` <span class="muted small">· ${esc(prev)}</span>`:""}</p>
       ${ex.timed?holdTimer(id, d):""}
@@ -1874,6 +1878,13 @@ function renderPlanTab(){
   const ip = ui.importPreview;
   return `<div class="wrap" style="padding:0">
 ${programView()}
+
+  <div class="sectionhead"><p class="eyebrow">Weight-stack photos</p><h3>Let Claude read a machine's plates</h3><p class="small muted">The first time you use a machine, snap its weight stack and Claude works out the plates. This uses your own Anthropic API key (console.anthropic.com), costs about a cent per machine, and sends only that photo. The key stays on this phone and is never in backups.</p></div>
+  <div class="panel" style="gap:10px">
+    <label class="field"><span class="lbl">Anthropic API key</span><input id="api-key" type="password" autocomplete="off" placeholder="${apiKey() ? "Saved · paste a new one to replace" : "sk-ant-…"}"></label>
+    <div class="datarow"><button class="btn sm" data-act="key-save">Save key</button>${apiKey()?`<button class="btn ghost sm" data-act="key-remove">Remove key</button>`:""}</div>
+    ${ui.keyMsg?`<p class="status" role="status">${esc(ui.keyMsg)}</p>`:""}
+  </div>
 
   <div class="sectionhead"><p class="eyebrow">Backup</p><h3>Export or import your data</h3><p class="small muted">Everything is saved on this phone only. Export saves every workout and weight to a file you can keep in Files or iCloud Drive. Import brings a file back, adding only workouts that aren't already here.</p></div>
   <div class="panel" style="gap:12px">
@@ -2098,6 +2109,84 @@ async function doSwap(orig, plan){
   if(next===orig) delete state.swaps[orig]; else state.swaps[orig] = next;
   await store.saveState();
 }
+/* ======================================================================
+   WEIGHT-STACK PHOTOS — the first time on a machine, snap its stack and
+   Claude reads the plates (step, lightest, heaviest). Saved to state.equip,
+   so it's never asked again. Uses her own Anthropic API key, kept only on
+   this phone (localStorage "coach.apikey", never in backups).
+   ====================================================================== */
+const STACK_MODEL = "claude-opus-5-5";
+const apiKey = ()=>{ try{ return localStorage.getItem("coach.apikey")||""; }catch(e){ return ""; } };
+let AnthropicSDK = null;
+async function claudeClient(){
+  if(!AnthropicSDK) AnthropicSDK = (await import("https://cdn.jsdelivr.net/npm/@anthropic-ai/sdk/+esm")).default;
+  return new AnthropicSDK({apiKey:apiKey(), dangerouslyAllowBrowser:true});
+}
+const STACK_SCHEMA = {
+  type:"object", additionalProperties:false,
+  required:["readable","unit","step","lightest","heaviest","plates","note"],
+  properties:{
+    readable:{type:"boolean", description:"false if the plate labels can't be read"},
+    unit:{type:"string", enum:["lb","kg"]},
+    step:{type:"number", description:"weight added by each plate on the main stack"},
+    lightest:{type:"number", description:"lightest selectable weight (the top plate)"},
+    heaviest:{type:"number", description:"heaviest selectable weight, 0 if not visible"},
+    plates:{type:"array", items:{type:"number"}, description:"the plate labels you can read, top to bottom"},
+    note:{type:"string", description:"one short sentence, e.g. about add-on or half plates; empty if none"}
+  }
+};
+function blobToBase64(blob){ return new Promise((res,rej)=>{ const r = new FileReader(); r.onload = ()=>res(String(r.result).split(",")[1]); r.onerror = ()=>rej(r.error); r.readAsDataURL(blob); }); }
+async function readStack(file){
+  const img = await shrinkPhoto(file), data = await blobToBase64(img);
+  const client = await claudeClient();
+  const response = await client.beta.messages.create({
+    model:STACK_MODEL, max_tokens:16000,
+    output_config:{effort:"medium", format:{type:"json_schema", schema:STACK_SCHEMA}},
+    betas:["server-side-fallback-2026-07-01"], fallbacks:"default",
+    messages:[{role:"user", content:[
+      {type:"image", source:{type:"base64", media_type:"image/jpeg", data}},
+      {type:"text", text:"This is a photo of the selectorized weight stack on a gym machine. Read the weight labels on the plates and describe the stack: the unit, how much each plate adds (step), the lightest selectable weight, the heaviest, and the labels you can read. If there's an add-on or half plate, use the main stack's step and mention the add-on in the note. If the labels can't be read, set readable to false."}
+    ]}]
+  });
+  if(response.stop_reason==="refusal") throw Object.assign(new Error("refused"), {kind:"refusal"});
+  const block = response.content.find(b=>b.type==="text");
+  if(!block) throw Object.assign(new Error("empty"), {kind:"unreadable"});
+  const out = JSON.parse(block.text);
+  if(!out.readable || !(out.step>0) || !(out.lightest>0)) throw Object.assign(new Error("unreadable"), {kind:"unreadable", note:out.note});
+  return out;
+}
+function stackErrorText(e){
+  const A = AnthropicSDK;
+  if(A && e instanceof A.AuthenticationError) return "That API key didn't work. Check it under My plan → Weight-stack photos.";
+  if(A && e instanceof A.RateLimitError) return "Claude is busy right now. Try again in a minute.";
+  if(A && e instanceof A.APIConnectionError) return "Couldn't reach Claude. Check your signal and try again.";
+  if(A && e instanceof A.APIError) return "Claude couldn't read that one. Try again, or set the weights yourself.";
+  if(e && e.kind==="unreadable") return "Couldn't make out the plate numbers. Try a straight-on photo of the stack labels, or set the weights yourself.";
+  if(e && e.kind==="refusal") return "Claude declined to read that photo. Set the weights yourself below.";
+  return "Couldn't read that photo. Check your signal, or set the weights yourself.";
+}
+function stackPrompt(id){
+  const r = ui.stackRead && ui.stackRead.id===id ? ui.stackRead : null;
+  if(r && r.busy) return `<div class="stack-card"><p class="small"><b>Reading the stack…</b> This takes a few seconds.</p></div>`;
+  if(r && r.result){
+    const x = r.result, sample = []; for(let w=x.lightest; sample.length<4; w+=x.step) sample.push(+w.toFixed(2));
+    return `<div class="stack-card"><p class="small"><b>Got it:</b> ${x.step} ${x.unit} steps from ${x.lightest}${x.heaviest?` up to ${x.heaviest}`:""} ${x.unit} (${sample.join(", ")}…).${x.unit==="kg"?" This stack is in kilograms; the app works in pounds, so check the numbers.":""}${x.note?` ${esc(x.note)}`:""}</p>
+      <div class="btnrow" style="justify-content:flex-start"><button class="btn sm" data-act="stack-ok" data-id="${id}">Looks right</button><button class="btn ghost sm" data-act="stack-adjust" data-id="${id}">Adjust</button></div></div>`;
+  }
+  const key = !!apiKey();
+  return `<div class="stack-card">
+    <p class="small"><b>First time on this machine.</b> ${key ? "Snap the weight stack and the coach will learn its plates. You won't be asked again." : "Tell the coach its plates once and you won't be asked again. (To have Claude read a photo instead, add your API key under My plan.)"}</p>
+    ${r && r.error ? `<p class="small" style="color:var(--rose)">${esc(r.error)}</p>` : ""}
+    <div class="btnrow" style="justify-content:flex-start">
+      ${key ? `<label class="btn sm filebtn">Photo of the stack<input id="stack-file" data-id="${id}" type="file" accept="image/*" capture="environment" aria-label="Photo of the weight stack"></label>` : ""}
+      <button class="btn ghost sm" data-act="stack-std" data-id="${id}">Standard 5 lb steps</button>
+      <button class="btn ghost sm" data-act="eq-open" data-id="${id}">Set it myself</button>
+    </div></div>`;
+}
+async function saveEquip(id, rec){
+  state.equip = Object.assign({}, state.equip||{}, {[id]:rec}); await store.saveState(); resnapEntry(id);
+}
+
 /* "Weights don't match this machine?" → tell the coach the stack's steps and lightest weight */
 function equipLine(id){
   const q = equipOf(id);
@@ -2184,6 +2273,11 @@ document.addEventListener("click", async ev=>{
   else if(a==="ph-close"){ ui.phView = null; render(); }
   else if(a==="ph-del"){ ui.phDel = id; render(); }
   else if(a==="ph-del-yes"){ await photos.del(id); ui.phDel = null; render(); }
+  else if(a==="stack-std"){ await saveEquip(id, {step:5, base:5, std:true}); ui.stackRead = null; render(); }
+  else if(a==="stack-ok"){ const x = ui.stackRead.result; await saveEquip(id, {step:x.step, base:x.lightest, max:x.heaviest||undefined, unit:x.unit, from:"photo"}); ui.stackRead = null; render(); }
+  else if(a==="stack-adjust"){ const x = ui.stackRead.result; ui.stackRead = null; ui.equipEdit = id; ui.eqStep = [2.5,5,10,15,20,25].includes(x.step) ? x.step : 10; ui.eqBase = x.lightest; render(); }
+  else if(a==="key-save"){ const v = (($("#api-key")||{}).value||"").trim(); try{ if(v) localStorage.setItem("coach.apikey", v); }catch(e){} ui.keyMsg = v ? "Saved on this phone." : null; render(); }
+  else if(a==="key-remove"){ try{ localStorage.removeItem("coach.apikey"); }catch(e){} ui.keyMsg = "Removed."; render(); }
   else if(a==="eq-open"){ ui.equipEdit = id; ui.eqStep = null; ui.eqBase = null; render(); }
   else if(a==="eq-step"){ const b = document.getElementById("eq-base"); ui.eqBase = b ? (parseFloat(b.value)||null) : null; ui.eqStep = Number(t.dataset.v); if(ui.eqBase==null) ui.eqBase = ui.eqStep; render(); }
   else if(a==="eq-cancel"){ ui.equipEdit = null; render(); }
@@ -2355,6 +2449,13 @@ document.addEventListener("change", async ev=>{
     try{ const list = parseInbodyCSV(await f.text()); if(!list.length) throw new Error("none"); await saveScans(list); ui.ibMsg = `Imported ${list.length} scan${list.length===1?"":"s"}.`; }
     catch(e){ ui.ibMsg = "Couldn't read scans from that file. Try Add scan and type the numbers in."; }
     t.value=""; render(); return;
+  }
+  if(t.id==="stack-file"){
+    const f = t.files && t.files[0], sid = t.dataset.id; if(!f) return;
+    ui.stackRead = {id:sid, busy:true}; render();
+    try{ ui.stackRead = {id:sid, result: await readStack(f)}; }
+    catch(e){ ui.stackRead = {id:sid, error: stackErrorText(e)}; }
+    render(); return;
   }
   if(t.id==="photo-file"){
     const f = t.files && t.files[0]; if(!f) return;
