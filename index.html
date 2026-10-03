@@ -473,7 +473,7 @@ td.r,th.r{text-align:right}
 
 <script>
 /* Build stamp: rewritten on every commit by .githooks/pre-commit (date + git revision number) */
-const BUILD = {date:"2026-10-03", rev:33};
+const BUILD = {date:"2026-10-03", rev:34};
 
 /* ---------- program library: Lifetime Plymouth machines + floor core ---------- */
 const DB_SIZES = [3,5,8,10,12,15,17.5,20,25,30,35,40];
@@ -870,17 +870,15 @@ function monthSVG(stems, greens, total, complete){
 }
 /* This month's weeks are the ones whose Monday falls in the month: 4 or 5 weeks, 3 stems each */
 function monthCard(){
-  const y = today.getFullYear(), m = today.getMonth();
-  const weeks = [];
-  // weeks before your first workout don't count against you
+  const y = today.getFullYear(), m = today.getMonth(), mk = `${y}-${pad(m+1)}`;
+  // stems count by the day you trained; the target is 3 for each week that starts this month
   const firstWeek = sessions.length ? weekKeyOf(sessions[sessions.length-1].date) : DX.wk.curKey;
-  for(let d = new Date(y, m, 1); d.getMonth()===m; d.setDate(d.getDate()+1)) if(d.getDay()===1){ const k = dkey(d); if(k>=firstWeek) weeks.push(DX.wk.map[k] || {key:k, n:0, stems:[], mood:moodFor(k)}); }
-  if(!weeks.length) weeks.push(DX.wk.map[DX.wk.curKey]);
-  const total = weeks.length*3;
-  const stems = weeks.flatMap(w=>w.stems||[]);
-  const greens = weeks.filter(w=>w.complete).flatMap(w=>MOODS[w.mood][2]);
+  let mondays = 0; for(let d = new Date(y, m, 1); d.getMonth()===m; d.setDate(d.getDate()+1)) if(d.getDay()===1 && dkey(d)>=firstWeek) mondays++;
+  const days = [...new Set(sessions.map(s=>s.date).filter(d=>d.startsWith(mk)))].sort();
+  const stems = days.map(d=>{ const W = DX.wk.map[weekKeyOf(d)]; if(!W) return null; const i = [...W.dates].sort().indexOf(d); return MOODS[W.mood][1][Math.max(0,i)%3]; }).filter(Boolean).slice(0, MONTH_POS.length);
+  const total = Math.min(MONTH_POS.length, Math.max(mondays*3 || 3, stems.length));
+  const greens = [...new Set(days.map(weekKeyOf))].map(k=>DX.wk.map[k]).filter(w=>w && w.complete).flatMap(w=>MOODS[w.mood][2]);
   const n = stems.length, name = today.toLocaleDateString(undefined,{month:"long"});
-  const left = weeks.filter(w=>w.key>=DX.wk.curKey).length;
   return `<div class="sectionhead"><p class="eyebrow">This month</p><h2>${esc(name)}<span class="muted" style="font-size:15px;font-family:var(--body)"> · ${n} of ${total} stems</span></h2></div>
   <figure class="monthcard">
     <svg viewBox="30 20 360 380" role="img" aria-label="${esc(name)} arrangement, ${n} of ${total} stems">${monthSVG(stems, greens, total, n>=total)}</svg>
@@ -1753,7 +1751,7 @@ function renderProgress(){
     if(!v) return `<div class="vring"><svg viewBox="0 0 80 80" aria-hidden="true"><circle cx="40" cy="40" r="34" fill="none" stroke="${sl.c}" stroke-opacity=".55" stroke-dasharray="2 4" stroke-width="1.5"/></svg><b>${sl.label}</b><span>Still to come</span></div>`;
     const lbl = v.type==="light" ? "Light day" : v.type==="mix" ? "Surprise mix" : sl.label;
     const face = faceFor(v);
-    return `<div class="vring done"><svg viewBox="0 0 80 80" aria-hidden="true"><circle cx="40" cy="40" r="34" fill="${sl.soft}" stroke="${sl.c}" stroke-width="3"/>${face || `<text x="40" y="46" text-anchor="middle" class="vday">${DAYS[parseKey(v.date).getDay()]}</text>`}</svg><b>${lbl}</b><span>${v.duration?fmtDuration(v.duration):`${v.minutes||0} min`}</span></div>`;
+    return `<div class="vring done"><svg viewBox="0 0 80 80" aria-hidden="true"><circle cx="40" cy="40" r="34" fill="var(--bg)" stroke="${sl.c}" stroke-width="3"/>${face || `<text x="40" y="46" text-anchor="middle" class="vday">${DAYS[parseKey(v.date).getDay()]}</text>`}</svg><b>${lbl}</b><span>${v.duration?fmtDuration(v.duration):`${v.minutes||0} min`}</span></div>`;
   };
   let out = `<div class="wrap" style="padding:0">
   ${monthCard()}

@@ -46,7 +46,7 @@ A personal, phone-first workout coach for machine training at Lifetime (Plymouth
   - Each visit (a distinct date, weeks run Monday to Sunday) reveals one stem. The third visit completes the week.
   - Only the stems earned this week show, small and unlabeled, in the header beside the affirmation on every tab (`renderBouquet`, `#bouquet`). There's no week card on the overview. On Progress, each visit's ring in This week shows that visit's flower head.
   - `arrangementSVG()` draws it from hand-built SVG flowers in `FDRAW`.
-  - The monthly arrangement (`monthCard`/`monthSVG`, on Progress): every stem from the weeks whose Monday falls in this month (4–5 weeks, 3 stems each; weeks before her first workout don't count) in one large vase. Unearned stems are dashed outlines (`MONTH_POS` has 15 spots), completed weeks add their greens, and a full month gets a gold base.
+  - The monthly arrangement (`monthCard`/`monthSVG`, on Progress): every stem earned on a day in this calendar month, in one large vase. The target is 3 per week that starts in the month (weeks before her first workout don't count). Unearned stems are dashed outlines (`MONTH_POS` has 15 spots), completed weeks add their greens, and a full month gets a gold base.
 
 ## Body composition, photos, sound
 - **InBody scans** live in `state.inbody` (`[{id,date,weight,smm,bfm,pbf,vfl,bmr,score,seg:{ra,la,tr,rl,ll}}]`, pounds) and travel in backups. Add by form or CSV (`parseInbodyCSV` matches LookinBody-style headers, converts kg). `bodyCard()` on Progress shows the latest numbers with change and sparklines, plus `inbodyRead()`: muscle/fat change, visits between scans, main-lift e1RM change, and left/right imbalances of 5% or more pointing to single-leg or iso-lateral swaps.
