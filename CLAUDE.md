@@ -46,6 +46,12 @@ A personal, phone-first workout coach for machine training at Lifetime (Plymouth
   - `arrangementSVG()` draws it from hand-built SVG flowers in `FDRAW`.
   - The monthly arrangement (`monthCard`/`monthSVG`, on Progress): every stem from the weeks whose Monday falls in this month (4–5 weeks, 3 stems each; weeks before her first workout don't count) in one large vase. Unearned stems are dashed outlines (`MONTH_POS` has 15 spots), completed weeks add their greens, and a full month gets a gold base.
 
+## Body composition, photos, sound
+- **InBody scans** live in `state.inbody` (`[{id,date,weight,smm,bfm,pbf,vfl,bmr,score,seg:{ra,la,tr,rl,ll}}]`, pounds) and travel in backups. Add by form or CSV (`parseInbodyCSV` matches LookinBody-style headers, converts kg). `bodyCard()` on Progress shows the latest numbers with change and sparklines, plus `inbodyRead()`: muscle/fat change, visits between scans, main-lift e1RM change, and left/right imbalances of 5% or more pointing to single-leg or iso-lateral swaps.
+- **Monthly reminder:** a quiet nudge on Today once a scan is 28+ days old (`scanDue`), and a downloadable `.ics` with a monthly repeat for the phone calendar.
+- **Progress photos** are private: IndexedDB (`coach-photos`), downscaled to 1400px JPEG, tucked collapsed at the bottom of Progress, never in backups. Grid, first-vs-latest compare, tap to enlarge, delete.
+- **Rest ding** uses Web Audio with `navigator.audioSession.type = "ambient"` (Safari 17+) so it mixes over music instead of pausing it. iOS mutes it on the speaker when the ringer is on silent and can't play anything while the app is backgrounded or locked; lock-screen alerts would need Web Push from a server.
+
 ## Data
 - Model: `state` `{manual:{[exerciseId]:{w,reps,at}}}` and `sessions` `[{id, v:3, date, type, minutes, energy, walk, note, createdAt, slot?, bonus?, deload?, block, week, phase, exercises:[{id, target:{w,reps}, planned, range:{lo,hi}, sets:[{w,reps,grade}], note}]}]`.
 - **Local storage only, by design.** `store` reads and writes `localStorage` (`coach.state`, `coach.sessions`) and asks for persistent storage. There is no backend and no sync. On iPhone the home-screen app has its own storage, separate from Safari, so data moves in and out only through **My plan → Export / Import backup**.
