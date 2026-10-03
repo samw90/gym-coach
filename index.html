@@ -473,7 +473,7 @@ td.r,th.r{text-align:right}
 
 <script>
 /* Build stamp: rewritten on every commit by .githooks/pre-commit (date + git revision number) */
-const BUILD = {date:"2026-10-03", rev:32};
+const BUILD = {date:"2026-10-03", rev:33};
 
 /* ---------- program library: Lifetime Plymouth machines + floor core ---------- */
 const DB_SIZES = [3,5,8,10,12,15,17.5,20,25,30,35,40];
@@ -1879,7 +1879,7 @@ function renderPlanTab(){
   return `<div class="wrap" style="padding:0">
 ${programView()}
 
-  <div class="sectionhead"><p class="eyebrow">Weight-stack photos</p><h3>Let Claude read a machine's plates</h3><p class="small muted">The first time you use a machine, snap its weight stack and Claude works out the plates. This uses your own Anthropic API key (console.anthropic.com), costs about a cent per machine, and sends only that photo. The key stays on this phone and is never in backups.</p></div>
+  <div class="sectionhead"><p class="eyebrow">Weight-stack photos</p><h3>Let Claude read a machine's plates</h3><p class="small muted">The first time you use a machine, snap its weight stack and Claude works out the plates. This uses your own Anthropic API key (console.anthropic.com), costs a few cents per machine, and sends only that photo. The key stays on this phone and is never in backups.</p></div>
   <div class="panel" style="gap:10px">
     <label class="field"><span class="lbl">Anthropic API key</span><input id="api-key" type="password" autocomplete="off" placeholder="${apiKey() ? "Saved · paste a new one to replace" : "sk-ant-…"}"></label>
     <div class="datarow"><button class="btn sm" data-act="key-save">Save key</button>${apiKey()?`<button class="btn ghost sm" data-act="key-remove">Remove key</button>`:""}</div>
