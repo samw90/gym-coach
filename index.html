@@ -149,11 +149,11 @@ header.top .affirm,header.top .meta{padding-right:54px}
 .btn.start{padding:15px 18px;font-size:16px}
 body.live header.top, body.live .weekwrap, body.live nav.tabs{display:none}
 body.live{padding-top:0;padding-bottom:40px}
-.livebar{position:sticky;top:0;z-index:6;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;margin:0 -16px 14px;padding:12px 16px;background:var(--bg);border-bottom:1px solid var(--line)}
-.livebar .linkbtn{justify-self:start;padding:0;font-size:14px;text-decoration:none;color:var(--ink)}
+.livebar{position:sticky;top:0;z-index:6;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:8px;margin:0 -16px 14px;padding:12px 16px;background:var(--bg);border-bottom:1px solid var(--line)}
+.livebar .linkbtn{white-space:nowrap;justify-self:start;padding:0;font-size:14px;text-decoration:none;color:var(--ink)}
 .lb-t{display:flex;flex-direction:column;align-items:center;line-height:1.2}
 .lb-t b{font-family:var(--display);font-weight:400;font-size:18px}
-.lb-t span{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.lb-t span{text-align:center;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600}
 .lb-c{justify-self:end;font-size:15px;font-weight:600}
 .build{margin:8px 0 0;text-align:center;font-size:10.5px;letter-spacing:.06em;color:var(--muted);opacity:.7}
 .ib-grid{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);background:var(--surface)}
@@ -185,6 +185,12 @@ body.live{padding-top:0;padding-bottom:40px}
 .ph-viewer{position:fixed;inset:0;z-index:20;background:rgba(10,8,8,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:20px}
 .ph-viewer img{max-width:100%;max-height:82vh;object-fit:contain}
 .ph-viewer p{color:#EEE6DC;font-size:13px;margin:0}
+.locker{display:flex;align-items:center;gap:10px;font-size:14px}
+.locker .lk-lbl{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.locker b{font-family:var(--display);font-weight:400;font-size:22px;line-height:1}
+.locker input{width:90px;padding:6px 8px;font-size:16px}
+.locker .linkbtn{padding:0;font-size:13px}
+.locker-add{align-self:flex-start;padding:0;font-size:13px;color:var(--muted)}
 .stack-card{display:flex;flex-direction:column;gap:9px;padding:12px;border:1px solid var(--line);background:var(--surface)}
 .stack-card p{margin:0}
 .eq-link{align-self:flex-start;padding:0;font-size:12.5px;color:var(--muted)}
@@ -473,7 +479,7 @@ td.r,th.r{text-align:right}
 
 <script>
 /* Build stamp: rewritten on every commit by .githooks/pre-commit (date + git revision number) */
-const BUILD = {date:"2026-10-03", rev:34};
+const BUILD = {date:"2026-10-04", rev:35};
 
 /* ---------- program library: Lifetime Plymouth machines + floor core ---------- */
 const DB_SIZES = [3,5,8,10,12,15,17.5,20,25,30,35,40];
@@ -571,11 +577,32 @@ const slotInfo = i=>{ const wk = Math.floor(i/3)%BLOCK.length; return {slot:i, b
 const CORE_REST = 45;
 const DAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 const STRETCHES = [
-  ["Hip flexor lunge stretch","45 sec each side"],["Figure-4 glute stretch","45 sec each side"],
-  ["Doorway chest stretch","30 sec × 2"],["Cat–cow","10 slow rounds"],
-  ["Child's pose","60 sec"],["Hamstring stretch on a bench","45 sec each side"],
-  ["Foam roll quads and upper back","2 min"],["Lat stretch on a rack","30 sec × 2 each side"]
+  {id:"hipflexor", name:"Hip flexor lunge stretch", secs:45, sides:2,
+   why:"Opens the front of the hips, which tighten from sitting all day.",
+   how:"Half-kneel on the mat with your back knee down (fold the mat under it). Tuck your tailbone and squeeze the back glute, then shift your hips forward until you feel it in the front of the back hip. Chest tall, breathe slowly."},
+  {id:"figure4", name:"Figure-4 glute stretch", secs:45, sides:2,
+   why:"Releases the glutes and deep hip rotators after leg days.",
+   how:"Lie on your back, knees bent. Cross one ankle over the opposite knee, then pull that bottom thigh toward your chest. Keep your head and shoulders relaxed on the mat."},
+  {id:"chest", name:"Doorway chest stretch", secs:30, rounds:2,
+   why:"Counters rounded shoulders from desk work and pressing.",
+   how:"Forearm against a doorway or a machine's upright, elbow at shoulder height. Step gently through until the front of your chest opens. Switch arms between rounds if you like."},
+  {id:"catcow", name:"Cat–cow", reps:10,
+   why:"Moves the whole spine gently and wakes up your back.",
+   how:"On hands and knees. Breathe in as you drop your belly and lift your chest (cow). Breathe out as you round your back toward the ceiling (cat). Slow, one breath each way. 10 rounds."},
+  {id:"child", name:"Child's pose", secs:60,
+   why:"Lengthens the low back and lats, and calms everything down.",
+   how:"Knees wide, big toes touching. Sit your hips back toward your heels and walk your hands forward. Let your forehead rest on the mat and breathe into your back."},
+  {id:"hamstring", name:"Hamstring stretch on a bench", secs:45, sides:2,
+   why:"Keeps the backs of the legs supple, which your low back appreciates.",
+   how:"Heel up on a low bench, leg straight, toes up. Hinge forward from the hips with a flat back until you feel it behind the thigh. Don't round down toward your toes."},
+  {id:"foamroll", name:"Foam roll quads and upper back", secs:120,
+   why:"Eases tight spots and helps sore muscles recover.",
+   how:"Quads: face down with the roller under your thighs, roll slowly from hip to just above the knee. Upper back: lie back on the roller across your shoulder blades, hands behind your head, and roll from mid-back to shoulders. Pause on tender spots and breathe."},
+  {id:"lat", name:"Lat stretch on a machine frame", secs:30, sides:2, rounds:2,
+   why:"Frees the sides of your back and shoulders after pulling days.",
+   how:"Hold a machine's upright frame at about hip height with one hand. Step back and sit your hips away, letting that arm stretch long, until you feel it along the side of your back."}
 ];
+const doseText = st=>st.reps ? `${st.reps} slow rounds` : `${st.secs>=120?Math.round(st.secs/60)+" min":st.secs+" sec"}${st.rounds>1?` × ${st.rounds}`:""}${st.sides===2?" each side":""}`;
 const TYPE_NAME = {lower:"Legs & glutes",upper:"Chest, back & arms",light:"Light full body",recovery:"Recovery",mix:"Surprise mix"};
 const GRADE = {easy:"Easy",right:"Just right",hard:"Hard"};
 
@@ -1272,6 +1299,52 @@ function tick(){
 function setText(id,t){ const el=document.getElementById(id); if(el && el.textContent!==t) el.textContent=t; }
 const C_RING = 2*Math.PI*78;
 function setArc(id,frac){ const el=document.getElementById(id); if(el) el.setAttribute("stroke-dashoffset", String(C_RING*(1-frac))); }
+/* ---------- recovery stretches: tap to open, a timer that switches sides, check off ---------- */
+const STRETCH_READY = 3;
+const stretchDone = ()=>liveGet().stretchDone || [];
+function stretchSteps(st){ const out = [], sides = st.sides||1, rounds = st.rounds||1; for(let r=0;r<rounds;r++) for(let k=0;k<sides;k++) out.push(sides===2 ? `${k?"Right":"Left"} side${rounds>1?` · round ${r+1}`:""}` : rounds>1 ? `Round ${r+1} of ${rounds}` : "Hold"); return out; }
+function stretchCard(st){
+  const done = stretchDone().includes(st.id), open = ui.open===st.id, T = ui.st && ui.st.id===st.id ? ui.st : null;
+  let body = "";
+  if(open){
+    const steps = stretchSteps(st);
+    let timer = "";
+    if(st.reps) timer = done ? "" : `<button class="btn ghost sm" data-act="st-check" data-id="${st.id}">Mark done</button>`;
+    else if(T){
+      const el = Math.max(0, Math.floor((Date.now()-T.t0)/1000));
+      timer = T.phase==="ready"
+        ? `<div class="timer hold"><div class="ring">${ringSVG("st-arc",0)}<div class="clock"><b id="st-clock">${STRETCH_READY-el}</b><span>Get set</span></div></div><p class="side-cue"><b>${steps[T.step]}</b></p><button class="btn ghost sm" data-act="st-stop">Stop</button></div>`
+        : `<div class="timer hold"><div class="ring">${ringSVG("st-arc", Math.min(1, el/st.secs))}<div class="clock"><b id="st-clock">${fmtClock(Math.max(0, st.secs-el))}</b><span>${steps[T.step]}</span></div></div><button class="btn ghost sm" data-act="st-next">${T.step<steps.length-1 ? (st.sides===2 ? "Switch now" : "Next round") : "Finish early"}</button></div>`;
+    } else if(!done) timer = `<div class="timer hold"><div class="ring">${ringSVG("st-arc",0)}<div class="clock"><b>${fmtClock(st.secs)}</b><span>${st.sides===2?"Each side":st.rounds>1?`× ${st.rounds}`:"Hold"}</span></div></div>${st.sides===2?`<p class="side-cue">Start on your <b>left side</b>.</p>`:""}<button class="btn" data-act="st-start" data-id="${st.id}">Start timer</button><p class="small muted">You get ${STRETCH_READY} seconds to get into position.</p></div>`;
+    body = `<div class="flow"><p class="small muted">${esc(st.why)}</p><p class="cue" style="color:var(--ink)">${esc(st.how)}</p>${timer}${done?`<p class="cheer">Done. Nice and easy.</p><button class="linkbtn" data-act="st-check" data-id="${st.id}" style="align-self:flex-start;padding:0">Undo</button>`:""}</div>`;
+  }
+  return `<article class="ex${done?" done":""}${open&&!done?" active":""}">
+    <button class="ex-main" data-act="st-open" data-id="${st.id}" aria-expanded="${open}">
+      <span class="ex-name"><span class="check" aria-hidden="true">${done?"✓":""}</span>${esc(st.name)}</span>
+      <span class="ex-w"></span>
+      <span class="ex-rx num">${esc(doseText(st))}</span>
+    </button>${body}</article>`;
+}
+function stTick(){
+  const T = ui.st; if(!T){ clearInterval(stTick.t); stTick.t = null; return; }
+  const st = STRETCHES.find(x=>x.id===T.id), steps = stretchSteps(st), el = Math.floor((Date.now()-T.t0)/1000);
+  if(T.phase==="ready"){
+    const left = STRETCH_READY-el;
+    if(left<=0){ T.phase = "hold"; T.t0 = Date.now(); beep(1175); render(); }
+    else { setText("st-clock", String(left)); if(left!==T.lastBeep){ T.lastBeep = left; beep(660); } }
+    return;
+  }
+  setText("st-clock", fmtClock(Math.max(0, st.secs-el))); setArc("st-arc", Math.min(1, el/st.secs));
+  if(el>=st.secs) stAdvance();
+}
+function stAdvance(){
+  const T = ui.st, st = STRETCHES.find(x=>x.id===T.id), steps = stretchSteps(st);
+  chime();
+  if(T.step<steps.length-1){ ui.st = {id:T.id, step:T.step+1, phase:"ready", t0:Date.now()}; }
+  else { ui.st = null; const d = stretchDone(); if(!d.includes(st.id)) livePut({stretchDone:[...d, st.id]}); }
+  render();
+}
+
 /* ---------- hold timer for timed moves (planks) ----------
    Start → 3-second countdown to get into position → the timer runs and stops at the goal.
    Forearm plank: one hold; Stop ends it early.
@@ -1431,6 +1504,13 @@ function walkCard(plan){
   </button>`;
 }
 
+function lockerGet(){ try{ const L = JSON.parse(localStorage.getItem("coach.locker")||"null"); return L && L.date===TODAY && L.num ? L : null; }catch(e){ return null; } }
+function lockerLine(){
+  const L = lockerGet();
+  if(ui.lockerEdit) return `<div class="locker"><label class="sr-only" for="locker-in">Locker number</label><span class="lk-lbl">Locker</span><input id="locker-in" type="text" inputmode="numeric" autocomplete="off" maxlength="12" value="${esc(L?L.num:"")}" placeholder="#"><button class="btn sm" data-act="locker-save">Save</button><button class="linkbtn" data-act="locker-cancel">Cancel</button></div>`;
+  if(L) return `<div class="locker"><span class="lk-lbl">Locker</span><b class="num">${esc(L.num)}</b><button class="linkbtn" data-act="locker-edit">Edit</button><button class="he-x" data-act="locker-clear" aria-label="Clear locker number">✕</button></div>`;
+  return `<button class="linkbtn locker-add" data-act="locker-edit">+ Locker number</button>`;
+}
 function renderToday(){
   const plan = buildPlan();
   const e = plan.e;
@@ -1440,11 +1520,11 @@ function renderToday(){
   const started = (draft && (Object.values(draft.entries||{}).some(d=>d.sets.length) || (draft.reopen && draft.reopen.date===TODAY))) || !!liveGet().date;
   if(savedToday || started){
     const next = savedToday && !started ? programState().next : programState(plan.C.mode==="bonus" ? null : plan.C.info.slot).next;
-    return `<div class="wrap" style="padding:0">${started ? todayPreview(plan, true) : savedTodayCard(savedToday)}${nextUpCard(next)}</div>`;
+    return `<div class="wrap" style="padding:0">${lockerLine()}${started ? todayPreview(plan, true) : savedTodayCard(savedToday)}${nextUpCard(next)}</div>`;
   }
   const due = scanDue();
   const nudge = due && due.due ? `<p class="nudge">InBody scan due · last one ${fmtShort(due.last.date)}. <button class="linkbtn" data-act="ib-go">Add results</button></p>` : "";
-  let out = `<div class="wrap" style="padding:0">${focusCard(plan)}${nudge}
+  let out = `<div class="wrap" style="padding:0">${lockerLine()}${focusCard(plan)}${nudge}
   <section class="panel" aria-label="Check in">
     <div class="q">
       <div class="q-label"><span>How much is left in the tank after work?</span></div>
@@ -1495,8 +1575,8 @@ function todayPreview(plan, inProgress){
   const e = plan.e, started = plan.type!=="recovery" && draft && Object.values(draft.entries).some(d=>d.sets.length);
   const n = started ? plan.all.filter(it=>draft.entries[it.id]?.sets.length).length : 0;
   let rows = "";
-  if(plan.walk) rows += `<div class="pv"><span>Treadmill walk</span><span class="muted num">${plan.walk.min} min</span></div>`;
-  if(plan.type==="recovery") rows += plan.stretches.map(([nm])=>`<div class="pv"><span>${esc(nm)}</span></div>`).join("");
+  if(plan.walk){ const wd = !!liveGet().walkDone; rows += `<div class="pv${wd?" done":""}"><span>${wd?"✓ ":""}Treadmill walk</span><span class="muted num">${plan.walk.min} min</span></div>`; }
+  if(plan.type==="recovery"){ const dn = stretchDone(); rows += plan.stretches.map(st=>`<div class="pv${dn.includes(st.id)?" done":""}"><span>${dn.includes(st.id)?"✓ ":""}${esc(st.name)}</span><span class="muted num">${esc(doseText(st))}</span></div>`).join(""); }
   else rows += plan.all.map(it=>{ const d = draft.entries[it.id], L = LIB[it.id];
     const canSwap = !d.sets.length && GROUP_OF[it.from||it.id] && GROUP_OF[it.from||it.id].length>1;
     return `<div class="pv${d.done?" done":""}"><span>${d.done?"✓ ":""}${esc(L.name)}</span><span class="muted num">${it.sets} × ${d.target.reps}${L.bw?"":` · ${d.target.w} ${unitOf(it.id)}`}${canSwap?`<button class="pv-swap" data-act="swap" data-id="${it.id}" aria-label="Swap ${esc(L.name)}" title="Swap for a similar move">⇄</button>`:""}</span></div>`; }).join("");
@@ -1517,7 +1597,7 @@ function renderLive(plan){
   const where = i.type==="mix" ? "Bonus day" : C.mode==="bonus" ? "Bonus day" : `Week ${i.week} · ${i.ph.phase}`;
   let out = `<div class="livebar">
     <button class="linkbtn" data-act="live-exit" aria-label="Back to overview">‹ Overview</button>
-    <div class="lb-t"><b>${esc(TYPE_NAME[plan.type])}</b><span>${esc(where)}</span></div>
+    <div class="lb-t"><b>${esc(TYPE_NAME[plan.type])}</b><span>${esc(where)}${lockerGet()?` · Locker ${esc(lockerGet().num)}`:""}</span></div>
     <span class="lb-c num" id="live-clock">${fmtClock(liveElapsed())}</span>
   </div>
   <div class="wrap" style="padding:0"><section style="display:flex;flex-direction:column;gap:12px" aria-label="Workout">`;
@@ -1525,7 +1605,7 @@ function renderLive(plan){
   if(plan.type==="recovery"){
     out += `<div class="coachnote"><b>Recovery is part of the program.</b> A walk and some mobility today help you get more out of the next lift.</div>`;
     out += walkCard(plan) + `<p class="eyebrow">Stretch & mobility</p>
-    <div class="list">${plan.stretches.map(([n,d])=>`<div class="ex"><div class="ex-main"><div class="ex-name">${esc(n)}</div><div class="ex-rx" style="padding-left:0">${esc(d)}</div></div></div>`).join("")}</div>
+    <div class="list">${plan.stretches.map(stretchCard).join("")}</div>
     <div class="finish"><span class="eyebrow">Rate this session</span>${starsRow()}<label for="rec-note" class="eyebrow">How does your body feel today?</label><textarea id="rec-note" placeholder="Sore spots, sleep, stress…">${esc(liveGet().recNote||"")}</textarea><button class="btn full" data-act="save-recovery">Log recovery day</button></div>`;
   } else {
     out += walkCard(plan);
@@ -2286,6 +2366,15 @@ document.addEventListener("click", async ev=>{
     ui.equipEdit = null; resnapEntry(id); render();
   }
   else if(a==="eq-reset"){ state.equip = Object.assign({}, state.equip||{}); delete state.equip[id]; await store.saveState(); ui.equipEdit = null; resnapEntry(id); render(); }
+  else if(a==="st-open"){ ui.open = ui.open===id ? null : id; if(ui.st && ui.st.id!==ui.open) ui.st = null; render(); }
+  else if(a==="st-start"){ unlockAudio(); keepAwake(); ui.st = {id, step:0, phase:"ready", t0:Date.now()}; if(!stTick.t) stTick.t = setInterval(stTick, 200); render(); }
+  else if(a==="st-next"){ if(ui.st) stAdvance(); }
+  else if(a==="st-stop"){ ui.st = null; render(); }
+  else if(a==="st-check"){ const d = stretchDone(); livePut({stretchDone: d.includes(id) ? d.filter(x=>x!==id) : [...d, id]}); ui.st = null; render(); }
+  else if(a==="locker-edit"){ ui.lockerEdit = true; render(); requestAnimationFrame(()=>{ const i = $("#locker-in"); if(i){ i.focus(); i.select(); } }); }
+  else if(a==="locker-cancel"){ ui.lockerEdit = false; render(); }
+  else if(a==="locker-save"){ const v = (($("#locker-in")||{}).value||"").trim(); try{ if(v) localStorage.setItem("coach.locker", JSON.stringify({date:TODAY, num:v})); else localStorage.removeItem("coach.locker"); }catch(e){} ui.lockerEdit = false; render(); }
+  else if(a==="locker-clear"){ try{ localStorage.removeItem("coach.locker"); }catch(e){} render(); }
   else if(a==="hold-start"){ unlockAudio(); keepAwake(); ui.rest=null; ui.hold={id, phase:"ready", t0:Date.now(), side:1}; if(!holdTick.t) holdTick.t=setInterval(holdTick, 200); render(); }
   else if(a==="hold-cancel"){ ui.hold=null; render(); }
   else if(a==="hold-stop"){
@@ -2364,7 +2453,7 @@ document.addEventListener("click", async ev=>{
   }
   else if(a==="save-recovery"){
     const note = ($("#rec-note")||{}).value||"";
-    const s = Object.assign({id:TODAY+"-recovery-"+Date.now().toString(36), v:3, date:TODAY, type:"recovery", minutes:ui.minutes, energy:ui.energy, walk:ui.minutes, rating:liveGet().rating||0, duration:liveElapsed(), finished:true, exercises:[], note, createdAt:new Date().toISOString()}, progFields(coachToday()));
+    const s = Object.assign({id:TODAY+"-recovery-"+Date.now().toString(36), v:3, date:TODAY, type:"recovery", minutes:ui.minutes, energy:ui.energy, walk:ui.minutes, rating:liveGet().rating||0, duration:liveElapsed(), finished:true, stretches:stretchDone(), exercises:[], note, createdAt:new Date().toISOString()}, progFields(coachToday()));
     if(draft && draft.reopen){ s.id = draft.reopen.id; s.createdAt = draft.reopen.createdAt; }
     const summ = summarize(s);
     try{ await store.putSession(s); if(draft && draft.reopen){ draft=null; try{ localStorage.removeItem("coach.draft"); }catch(e){} } try{ localStorage.removeItem("coach.reopened"); }catch(e){} ui.saved=Object.assign(summ,{changes:[]}); endLive(); ui.focus="auto"; try{localStorage.setItem("coach.mix",JSON.stringify({date:dkeyNow(),seed:ui.mixSeed,on:false}));}catch(e){} ui.walkT=null; render(); }catch(e){ t.textContent="Couldn't save. Tap to try again."; }
@@ -2432,6 +2521,7 @@ document.addEventListener("click", async ev=>{
   }
 });
 
+document.addEventListener("keydown", ev=>{ if(ev.key==="Enter" && ev.target.id==="locker-in"){ ev.preventDefault(); const b = document.querySelector('[data-act="locker-save"]'); if(b) b.click(); } });
 document.addEventListener("focusin", ev=>{ const t=ev.target; if(t.dataset && (t.dataset.act==="inW"||t.dataset.act==="inR")) setTimeout(()=>{ try{ t.select(); }catch(e){} },0); });
 document.addEventListener("input", ev=>{
   const t = ev.target; const a=t.dataset.act, id=t.dataset.id;
